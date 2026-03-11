@@ -1,0 +1,4 @@
+"""
+Core assistant package initialization.
+"""
+

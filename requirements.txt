@@ -1,0 +1,15 @@
+speechrecognition
+vosk
+pyttsx3
+pyaudio
+psutil
+pyautogui
+selenium
+opencv-python
+ultralytics
+openai
+google-genai
+python-dotenv
+google-api-python-client
+google-auth-httplib2
+google-auth-oauthlib

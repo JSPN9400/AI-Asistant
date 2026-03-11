@@ -1,0 +1,15 @@
+.venv/
+.env
+__pycache__/
+*.pyc
+assistant_memory.db
+token.json
+credentials.json
+models/
+screenshots/
+build/
+dist/
+*.spec.bak
+.selenium-cache/
+tmp_comtypes_gen/
+tmp_tts.wav

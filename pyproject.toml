@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sikha-assistant"
+version = "0.1.0"
+description = "Desktop Hindi-English voice assistant"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "speechrecognition",
+  "vosk",
+  "pyttsx3",
+  "pyaudio",
+  "psutil",
+  "pyautogui",
+  "selenium",
+  "opencv-python",
+  "ultralytics",
+  "openai",
+  "google-genai",
+  "python-dotenv",
+  "google-api-python-client",
+  "google-auth-httplib2",
+  "google-auth-oauthlib",
+]
+
+[project.scripts]
+sikha = "main:main"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.package-data]
+voice = ["browser_tts.html"]

@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Sikha Voice</title>
+</head>
+<body>
+  <script>
+    const params = new URLSearchParams(location.hash.slice(1));
+    const text = params.get("text") || "";
+    const rate = Number(params.get("rate") || "180");
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = Math.max(0.7, Math.min(1.4, rate / 180));
+    utterance.lang = /[\u0900-\u097F]/.test(text) ? "hi-IN" : "en-US";
+    utterance.onend = () => setTimeout(() => window.close(), 300);
+    speechSynthesis.cancel();
+    speechSynthesis.speak(utterance);
+    setTimeout(() => window.close(), 12000);
+  </script>
+</body>
+</html>
