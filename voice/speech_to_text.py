@@ -7,7 +7,7 @@ import time
 from pathlib import Path
 
 import pyaudio
-from vosk import KaldiRecognizer, Model
+from vosk import KaldiRecognizer, Model, SetLogLevel
 
 from assistant.paths import app_root, resource_path
 
@@ -27,6 +27,7 @@ class SpeechToText:
         energy_threshold: int = 350,
         require_wake_word: bool | None = None,
     ):
+        SetLogLevel(-1)
         model_dir = model_path or self._resolve_model_path()
         if not model_dir.exists():
             raise RuntimeError(

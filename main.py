@@ -15,6 +15,7 @@ if TYPE_CHECKING:
 
 EXIT_KEYWORDS = {"exit", "quit", "stop", "goodbye"}
 ASSISTANT_NAME = "Sikha"
+END_OF_INPUT = object()
 
 
 def _voice_input_enabled() -> bool:
@@ -50,14 +51,14 @@ def _speak(tts: "TextToSpeech | None", message: str) -> None:
     tts.speak(message)
 
 
-def _get_user_input(stt: "SpeechToText | None") -> str | None:
+def _get_user_input(stt: "SpeechToText | None") -> str | None | object:
     if stt is not None:
         return stt.listen()
 
     try:
         text = input("You: ").strip()
     except EOFError:
-        return None
+        return END_OF_INPUT
     return text or None
 
 
@@ -79,6 +80,9 @@ def main() -> None:
 
     while True:
         text = _get_user_input(stt)
+        if text is END_OF_INPUT:
+            _speak(tts, "Okay, goodbye.")
+            break
         if not text:
             _speak(tts, "I didn't catch that. Please repeat.")
             continue
