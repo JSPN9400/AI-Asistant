@@ -40,13 +40,15 @@ class SpeechToText:
         self.recognizer = KaldiRecognizer(self.model, sample_rate)
         self.recognizer.SetWords(True)
         self.energy_threshold = int(os.getenv("ASSISTANT_ENERGY_THRESHOLD", energy_threshold))
-        default_require_wake_word = os.getenv("ASSISTANT_REQUIRE_WAKE_WORD", "1").strip().lower()
+        self.debug = os.getenv("ASSISTANT_STT_DEBUG", "").strip().lower() in {"1", "true", "yes", "on"}
+        default_require_wake_word = os.getenv("ASSISTANT_REQUIRE_WAKE_WORD", "0").strip().lower()
         self.require_wake_word = (
             require_wake_word
             if require_wake_word is not None
             else default_require_wake_word in {"1", "true", "yes", "on"}
         )
         self.wake_words = ("sikha", "shikha", "sikhaa")
+        self._last_debug_rms = 0.0
 
         self.audio = pyaudio.PyAudio()
         self._queue: queue.Queue[bytes] = queue.Queue()
@@ -58,18 +60,27 @@ class SpeechToText:
             frames_per_buffer=4000,
             stream_callback=self._callback,
         )
+        self._debug(
+            f"SpeechToText ready: model='{model_dir.name}', sample_rate={self.sample_rate}, "
+            f"energy_threshold={self.energy_threshold}, wake_word_required={self.require_wake_word}"
+        )
 
     @staticmethod
     def _resolve_model_path() -> Path:
+        preferred_model = os.getenv("ASSISTANT_STT_MODEL", "").strip()
         models_root = resource_path("models")
-        candidates = [
-            models_root / "vosk-hindi-en",
-            models_root / "vosk-model-small-hi-0.22",
-            models_root / "vosk-model-small-en-us-0.15",
-            app_root() / "models" / "vosk-hindi-en",
-            app_root() / "models" / "vosk-model-small-hi-0.22",
-            app_root() / "models" / "vosk-model-small-en-us-0.15",
-        ]
+        search_roots = [models_root, app_root() / "models"]
+
+        if preferred_model:
+            candidates = [root / preferred_model for root in search_roots]
+        else:
+            candidates = [
+                root / "vosk-hindi-en" for root in search_roots
+            ] + [
+                root / "vosk-model-small-en-us-0.15" for root in search_roots
+            ] + [
+                root / "vosk-model-small-hi-0.22" for root in search_roots
+            ]
 
         for candidate in candidates:
             if candidate.exists():
@@ -84,6 +95,7 @@ class SpeechToText:
     def listen(self, timeout: float = 5, phrase_time_limit: float = 20) -> str | None:
         mode = "wake word required" if self.require_wake_word else "direct command"
         print(f"Listening (offline Vosk, {mode})...")
+        self._debug(f"listen() started: timeout={timeout}, phrase_time_limit={phrase_time_limit}")
 
         result_text: list[str] = []
         done = threading.Event()
@@ -115,16 +127,26 @@ class SpeechToText:
         done.set()
 
         if not result_text:
+            final_res = json.loads(self.recognizer.FinalResult())
+            final_text = final_res.get("text", "").strip()
+            if final_text:
+                result_text.append(final_text)
+
+        if not result_text:
+            self._debug("listen() ended without recognized speech")
             print("Could not understand focused speech.")
             return None
 
         text = " ".join(result_text)
+        self._debug(f"recognized raw text: {text}")
         if self.require_wake_word and not self._has_wake_word(text):
+            self._debug("wake word missing in recognized text")
             print("Wake word not detected, ignoring background speech.")
             return None
 
         text = self._strip_wake_word(text)
         if not text:
+            self._debug("wake word detected but command content was empty")
             print("Wake word detected, waiting for a command.")
             return None
 
@@ -133,7 +155,11 @@ class SpeechToText:
 
     def _is_foreground_audio(self, data: bytes) -> bool:
         try:
-            return audioop.rms(data, 2) >= self.energy_threshold
+            rms = audioop.rms(data, 2)
+            if self.debug and rms != self._last_debug_rms:
+                self._last_debug_rms = rms
+                print(f"[STT debug] audio rms={rms} threshold={self.energy_threshold}")
+            return rms >= self.energy_threshold
         except Exception:
             return True
 
@@ -144,4 +170,8 @@ class SpeechToText:
     def _strip_wake_word(self, text: str) -> str:
         words = [word for word in text.split() if word.lower() not in self.wake_words]
         return " ".join(words).strip()
+
+    def _debug(self, message: str) -> None:
+        if self.debug:
+            print(f"[STT debug] {message}")
 

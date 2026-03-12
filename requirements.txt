@@ -13,3 +13,9 @@ python-dotenv
 google-api-python-client
 google-auth-httplib2
 google-auth-oauthlib
+fastapi
+uvicorn
+python-multipart
+pydantic-settings
+sqlmodel
+email-validator

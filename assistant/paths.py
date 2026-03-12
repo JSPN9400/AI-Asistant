@@ -1,6 +1,7 @@
 import os
 import sys
 from pathlib import Path
+from uuid import uuid4
 
 
 APP_NAME = "SikhaAssistant"
@@ -25,7 +26,8 @@ def data_dir() -> Path:
         path = Path(local_appdata) / APP_NAME
         try:
             path.mkdir(parents=True, exist_ok=True)
-            return path
+            if _is_writable_dir(path):
+                return path
         except OSError:
             pass
 
@@ -39,3 +41,13 @@ def resource_path(*parts: str) -> Path:
     if candidate.exists():
         return candidate
     return app_root().joinpath(*parts)
+
+
+def _is_writable_dir(path: Path) -> bool:
+    probe = path / f".write-test-{uuid4().hex}.tmp"
+    try:
+        probe.write_text("ok", encoding="utf-8")
+        probe.unlink()
+        return True
+    except OSError:
+        return False

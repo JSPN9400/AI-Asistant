@@ -1,15 +1,16 @@
-from .camera import Camera
-from .object_detection import ObjectDetector
-
-_camera: Camera | None = None
-_detector: ObjectDetector | None = None
+_camera = None
+_detector = None
 
 
 def _ensure():
     global _camera, _detector
     if _camera is None:
+        from .camera import Camera
+
         _camera = Camera()
     if _detector is None:
+        from .object_detection import ObjectDetector
+
         _detector = ObjectDetector()
     return _camera, _detector
 

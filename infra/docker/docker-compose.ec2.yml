@@ -1,0 +1,21 @@
+services:
+  api:
+    build:
+      context: ../../
+      dockerfile: infra/docker/Dockerfile.backend
+    container_name: sikha-api
+    restart: unless-stopped
+    env_file:
+      - ../../backend/.env.ec2
+    environment:
+      DATABASE_URL: sqlite:///./work_assistant.db
+      FILE_STORAGE_PATH: ./storage
+    ports:
+      - "80:8000"
+    volumes:
+      - sikha_data:/app/backend/storage
+      - sikha_db:/app/backend
+
+volumes:
+  sikha_data:
+  sikha_db:

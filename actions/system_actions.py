@@ -5,7 +5,6 @@ from typing import Optional
 from urllib.parse import quote_plus
 
 import psutil
-import pyautogui
 
 from assistant.paths import data_dir
 
@@ -122,6 +121,11 @@ def youtube_play(query: str) -> str:
 
 
 def take_screenshot(output_dir: str | None = None) -> str:
+    try:
+        import pyautogui
+    except Exception as exc:
+        return f"Screenshot is unavailable right now: {exc}"
+
     path = Path(output_dir) if output_dir else data_dir() / "screenshots"
     path.mkdir(parents=True, exist_ok=True)
     file_path = path / "screenshot.png"

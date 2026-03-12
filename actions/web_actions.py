@@ -1,13 +1,14 @@
-from integrations.browser.selenium_client import SeleniumBrowser
 from urllib.parse import quote_plus
 import webbrowser
 
-_browser: SeleniumBrowser | None = None
+_browser = None
 
 
-def _ensure_browser() -> SeleniumBrowser:
+def _ensure_browser():
     global _browser
     if _browser is None:
+        from integrations.browser.selenium_client import SeleniumBrowser
+
         _browser = SeleniumBrowser(headless=False)
     return _browser
 

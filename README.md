@@ -110,3 +110,77 @@ It uses the local virtual environment if present, otherwise it tries `py`.
 - Vision: add your YOLO model file
 - Better voice mode: install a suitable Vosk Hindi/English model
 
+## Cloud Work Assistant Scaffold
+
+This repo now also contains a starter cloud-first workplace AI architecture under:
+
+- [backend/app/main.py](/e:/My%20project%20with%20git/AI-Asistant/backend/app/main.py)
+- [docs/PRODUCT_ARCHITECTURE.md](/e:/My%20project%20with%20git/AI-Asistant/docs/PRODUCT_ARCHITECTURE.md)
+- [frontend/web/README.md](/e:/My%20project%20with%20git/AI-Asistant/frontend/web/README.md)
+
+Run the backend locally:
+
+```powershell
+cd "e:\My project with git\AI-Asistant\backend"
+..\.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+$env:PYTHONPATH="e:\My project with git\AI-Asistant\backend"
+..\.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload
+```
+
+Optional cloud reasoner setup:
+
+```powershell
+$env:ASSISTANT_ENABLE_CLOUD_REASONER="true"
+$env:ASSISTANT_LLM_PROVIDER="gemini"
+$env:GEMINI_API_KEY="your_key_here"
+```
+
+Or for Ollama:
+
+```powershell
+$env:ASSISTANT_ENABLE_CLOUD_REASONER="true"
+$env:ASSISTANT_LLM_PROVIDER="ollama"
+$env:OLLAMA_MODEL="phi3"
+$env:OLLAMA_HOST="http://127.0.0.1:11434"
+```
+
+Web app:
+
+- After starting the backend, open `http://127.0.0.1:8000/`
+- API docs stay available at `http://127.0.0.1:8000/docs`
+- Default API key for the starter is `replace-in-prod`
+
+Core starter modules included:
+
+- frontend placeholders for web, desktop, and mobile companion
+- FastAPI API server
+- task router
+- LLM reasoning stub
+- plugin system
+- auth and workspace stubs
+- file upload service
+- deployment Docker files
+
+The web starter now includes:
+
+- task runner UI
+- plugin catalog view
+- task history view
+- file upload to workspace storage
+- system status view for API and LLM routing mode
+- login flow for bearer-token auth using the seeded demo user
+
+Starter login:
+
+```text
+email: demo@company.com
+password: demo-pass
+workspace: demo-workspace
+```
+
+Architecture blueprint for the low-spec workplace assistant:
+
+- [docs/LOW_SPEC_WORK_ASSISTANT_BLUEPRINT.md](/e:/My%20project%20with%20git/AI-Asistant/docs/LOW_SPEC_WORK_ASSISTANT_BLUEPRINT.md)
+- [docs/AWS_EC2_DEPLOYMENT.md](/e:/My%20project%20with%20git/AI-Asistant/docs/AWS_EC2_DEPLOYMENT.md)
+- [docs/RENDER_DEPLOYMENT.md](/e:/My%20project%20with%20git/AI-Asistant/docs/RENDER_DEPLOYMENT.md)
+

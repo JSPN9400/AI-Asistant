@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sikha Work Assistant</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <span class="brand-kicker">Low-Spec Workplace AI</span>
+        <h1>Sikha Control</h1>
+        <p>Cloud reasoning, lightweight clients, and task-focused automation for daily work.</p>
+      </div>
+
+      <section class="panel">
+        <div class="section-head">
+          <h2>Connection</h2>
+          <button id="refreshStatusBtn" class="ghost compact-btn">Refresh</button>
+        </div>
+        <label>API Base URL
+          <input id="apiBaseUrl" value="http://127.0.0.1:8000">
+        </label>
+        <label>API Key
+          <input id="apiKey" value="replace-in-prod">
+        </label>
+        <label>User ID
+          <input id="userId" value="demo-user">
+        </label>
+        <label>Workspace ID
+          <input id="workspaceId" value="demo-workspace">
+        </label>
+        <label>Login Email
+          <input id="loginEmail" value="demo@company.com">
+        </label>
+        <label>Password
+          <input id="loginPassword" type="password" value="demo-pass">
+        </label>
+        <button id="loginBtn">Sign In</button>
+        <div class="status-stack">
+          <div class="status-row">
+            <span class="status-label">API</span>
+            <span id="apiBadge" class="badge badge-muted">Checking</span>
+          </div>
+          <div class="status-row">
+            <span class="status-label">Reasoner</span>
+            <span id="llmBadge" class="badge badge-muted">Unknown</span>
+          </div>
+          <div class="status-row">
+            <span class="status-label">Auth</span>
+            <span id="authBadge" class="badge badge-warning">API key</span>
+          </div>
+        </div>
+        <p id="statusText" class="muted">Waiting for server...</p>
+      </section>
+
+      <section class="panel">
+        <div class="section-head">
+          <h2>Quick Actions</h2>
+        </div>
+        <div class="quick-grid">
+          <button data-prompt="Create a weekly sales report from this data." class="quick-btn">Sales Report</button>
+          <button data-prompt="Summarize these meeting notes and extract action items." class="quick-btn">Meeting Summary</button>
+          <button data-prompt="Draft a client response for delayed dispatch." class="quick-btn">Client Email</button>
+          <button data-prompt="Analyze this spreadsheet for trends." class="quick-btn">Data Analysis</button>
+          <button data-prompt="Search market update for FMCG distribution trends." class="quick-btn">Web Search</button>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="section-head">
+          <h2>Plugins</h2>
+          <button id="loadPluginsBtn" class="ghost compact-btn">Reload</button>
+        </div>
+        <div id="pluginList" class="stack muted">No plugin data loaded.</div>
+      </section>
+    </aside>
+
+    <main class="content">
+      <section class="hero">
+        <div>
+          <span class="eyebrow">Operator Workspace</span>
+          <h2>Route natural-language work requests into structured actions</h2>
+          <p>Workers can submit tasks, attach files, and get report drafts, summaries, analysis, and search outputs from one low-overhead console.</p>
+        </div>
+        <div class="hero-metrics">
+          <div class="metric">
+            <strong id="metricTaskCount">0</strong>
+            <span>Tasks in view</span>
+          </div>
+          <div class="metric">
+            <strong id="metricPluginCount">0</strong>
+            <span>Active plugins</span>
+          </div>
+          <div class="metric">
+            <strong id="metricWorkspace">demo</strong>
+            <span>Workspace</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="workspace-grid">
+        <div class="card task-card">
+          <div class="card-head">
+            <h3>Task Runner</h3>
+            <span class="pill">Structured execution</span>
+          </div>
+          <label>Task request
+            <textarea id="taskInput" rows="6" placeholder="Create a weekly sales report from this data."></textarea>
+          </label>
+          <label>Attachment IDs
+            <input id="attachmentsInput" placeholder="file-1,file-2">
+          </label>
+          <div class="actions">
+            <button id="runTaskBtn">Run Task</button>
+            <button id="loadHistoryBtn" class="ghost">History</button>
+          </div>
+        </div>
+
+        <div class="card upload-card">
+          <div class="card-head">
+            <h3>Workspace Files</h3>
+            <span class="pill alt">Source material</span>
+          </div>
+          <label>Upload a file
+            <input id="fileInput" type="file">
+          </label>
+          <button id="uploadBtn">Upload File</button>
+          <div id="uploadResult" class="result compact">No upload yet.</div>
+        </div>
+      </section>
+
+      <section class="workspace-grid">
+        <div class="card">
+          <div class="card-head">
+            <h3>Task Result</h3>
+            <span id="taskBadge" class="badge badge-muted">Idle</span>
+          </div>
+          <div id="resultSummary" class="result-summary muted">Run a task to see routed intent and output.</div>
+          <div id="resultStructured" class="structured-view"></div>
+          <pre id="taskResult" class="result">No task run yet.</pre>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <h3>Recent History</h3>
+          </div>
+          <div id="historyList" class="history-list muted">No history loaded.</div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="./app.js"></script>
+</body>
+</html>

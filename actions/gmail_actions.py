@@ -1,14 +1,19 @@
 import base64
 from email.mime.text import MIMEText
 
-from integrations.google.gmail_client import GmailClient
-
-_gmail: GmailClient | None = None
+_gmail = None
 
 
-def _client() -> GmailClient:
+def _client():
     global _gmail
     if _gmail is None:
+        try:
+            from integrations.google.gmail_client import GmailClient
+        except Exception as exc:
+            raise RuntimeError(
+                "Gmail integration is unavailable right now. "
+                "Check the Google client dependencies and credentials."
+            ) from exc
         _gmail = GmailClient()
     return _gmail
 
