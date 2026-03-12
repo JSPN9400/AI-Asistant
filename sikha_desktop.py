@@ -38,6 +38,7 @@ class LocalBackend:
             host="127.0.0.1",
             port=self.port,
             log_level="warning",
+            log_config=None,
         )
         self._server = uvicorn.Server(config)
         self._thread = threading.Thread(target=self._server.run, daemon=True)
