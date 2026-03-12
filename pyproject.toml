@@ -30,11 +30,13 @@ dependencies = [
   "pydantic-settings",
   "sqlmodel",
   "email-validator",
+  "pywebview",
 ]
 
 [project.scripts]
 sikha = "main:main"
 sikha-gui = "sikha_gui:main"
+sikha-desktop = "sikha_desktop:main"
 
 [tool.setuptools]
 include-package-data = true

@@ -4,8 +4,9 @@ let recognition = null;
 let listening = false;
 
 function getConfig() {
+  const enteredApiBaseUrl = $("apiBaseUrl").value.trim().replace(/\/$/, "");
   return {
-    apiBaseUrl: $("apiBaseUrl").value.trim().replace(/\/$/, ""),
+    apiBaseUrl: enteredApiBaseUrl || window.location.origin.replace(/\/$/, ""),
     apiKey: $("apiKey").value.trim(),
     userId: $("userId").value.trim(),
     workspaceId: $("workspaceId").value.trim(),

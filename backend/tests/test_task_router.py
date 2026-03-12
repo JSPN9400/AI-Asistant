@@ -48,3 +48,18 @@ def test_desktop_control_route() -> None:
     assert result["task"] == "desktop_control"
     assert "cannot open apps on your computer" in result["result"]["message"]
     assert result["result"]["assistant_reply"]
+
+
+def test_general_question_route() -> None:
+    router = TaskRouter()
+    result = router.handle(
+        "Who is the prime minister of India?",
+        {
+            "workspace_id": "demo-workspace",
+            "user_id": "user-1",
+            "attachments": [],
+            "context": {},
+        },
+    )
+    assert result["task"] == "general_assistant"
+    assert result["result"]["assistant_reply"]

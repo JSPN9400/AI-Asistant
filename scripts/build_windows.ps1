@@ -1,5 +1,6 @@
 param(
-    [switch]$OneFile
+    [switch]$OneFile,
+    [switch]$Installer
 )
 
 $ErrorActionPreference = "Stop"
@@ -20,7 +21,17 @@ try {
     }
 
     & $VenvPython @args
-    Write-Host "Build complete. Check dist\\SikhaAssistant\\ or dist\\SikhaAssistant.exe"
+    Write-Host "App build complete. Check dist\\SikhaAssistant.exe"
+
+    if ($Installer) {
+        $iscc = Get-Command iscc -ErrorAction SilentlyContinue
+        if (-not $iscc) {
+            throw "Inno Setup Compiler (iscc) is not installed. Install Inno Setup, then rerun with -Installer."
+        }
+
+        & $iscc.Source "installer\\SikhaAssistant.iss"
+        Write-Host "Installer build complete. Check dist\\installer\\SikhaAssistantSetup.exe"
+    }
 }
 finally {
     Pop-Location

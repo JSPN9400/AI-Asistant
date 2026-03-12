@@ -23,6 +23,7 @@ Available tasks:
 - web_search
 - browser_navigator
 - desktop_control
+- general_assistant
 - small_talk
 """
 
@@ -271,10 +272,29 @@ class LLMReasoner:
                 },
             )
 
+        if text.endswith("?") or text.startswith(
+            (
+                "who ",
+                "what ",
+                "when ",
+                "where ",
+                "why ",
+                "how ",
+                "which ",
+                "can you ",
+                "tell me ",
+                "do you know ",
+            )
+        ):
+            return StructuredTask(
+                task="general_assistant",
+                parameters={"prompt": user_input},
+            )
+
         return StructuredTask(
-            task="small_talk",
+            task="general_assistant",
             parameters={
-                "response": "I understood your message, but I need a clearer task. Try asking for a report, summary, email draft, data analysis, web search, or say open YouTube.",
+                "prompt": user_input,
             },
         )
 

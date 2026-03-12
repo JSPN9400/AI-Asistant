@@ -77,14 +77,15 @@ From this project folder:
 
 Output goes to:
 
-- `dist/SikhaAssistant/` for the folder build
-- `dist/SikhaAssistant.exe` if you build with `-OneFile`
+- `dist/SikhaAssistant.exe`
 
-One-file build:
+Installable Windows setup:
 
 ```powershell
-.\scripts\build_windows.ps1 -OneFile
+.\scripts\build_windows.ps1 -Installer
 ```
+
+This requires Inno Setup (`iscc`) to be installed.
 
 ## Portable App Notes
 

@@ -6,6 +6,7 @@ project_root = Path.cwd()
 
 datas = [
     (str(project_root / "voice" / "browser_tts.html"), "voice"),
+    (str(project_root / "frontend" / "web" / "app"), "frontend/web/app"),
 ]
 
 hiddenimports = [
@@ -13,12 +14,13 @@ hiddenimports = [
     "pyttsx3.drivers.sapi5",
     "vosk",
     "pyaudio",
+    "webview",
 ]
 
 block_cipher = None
 
 a = Analysis(
-    ["main.py"],
+    ["sikha_desktop.py"],
     pathex=[str(project_root)],
     binaries=[],
     datas=datas,
@@ -45,6 +47,6 @@ exe = EXE(
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
-    console=True,
+    console=False,
     disable_windowed_traceback=False,
 )

@@ -11,6 +11,8 @@ class LLMGateway:
     def is_configured(self) -> bool:
         if not settings.enable_cloud_reasoner:
             return False
+        if settings.llm_provider == "openai":
+            return bool(settings.openai_api_key)
         if settings.llm_provider == "ollama":
             return True
         return bool(settings.gemini_api_key)
@@ -19,9 +21,16 @@ class LLMGateway:
         if not settings.enable_cloud_reasoner:
             return {
                 "provider": settings.llm_provider,
-                "model": settings.ollama_model if settings.llm_provider == "ollama" else settings.gemini_model,
+                "model": self._configured_model_name(),
                 "available": "false",
                 "message": "Cloud reasoner disabled. Using deterministic fallback routing.",
+            }
+        if settings.llm_provider == "openai":
+            return {
+                "provider": "openai",
+                "model": settings.openai_model,
+                "available": str(bool(settings.openai_api_key)).lower(),
+                "message": "OpenAI API key found." if settings.openai_api_key else "Set OPENAI_API_KEY to enable OpenAI.",
             }
         if settings.llm_provider == "ollama":
             try:
@@ -60,6 +69,8 @@ class LLMGateway:
         }
 
     def complete_json(self, system_prompt: str, user_prompt: str) -> str:
+        if settings.llm_provider == "openai":
+            return self._complete_openai_json(system_prompt, user_prompt)
         if settings.llm_provider == "ollama":
             return self._complete_ollama_json(system_prompt, user_prompt)
         if settings.gemini_api_key:
@@ -67,11 +78,60 @@ class LLMGateway:
         raise RuntimeError("No LLM provider is configured.")
 
     def complete_text(self, system_prompt: str, user_prompt: str) -> str:
+        if settings.llm_provider == "openai":
+            return self._complete_openai_text(system_prompt, user_prompt)
         if settings.llm_provider == "ollama":
             return self._complete_ollama_text(system_prompt, user_prompt)
         if settings.gemini_api_key:
             return self._complete_gemini_text(system_prompt, user_prompt)
         raise RuntimeError("No LLM provider is configured.")
+
+    @staticmethod
+    def _configured_model_name() -> str:
+        if settings.llm_provider == "openai":
+            return settings.openai_model
+        if settings.llm_provider == "ollama":
+            return settings.ollama_model
+        return settings.gemini_model
+
+    def _complete_openai_json(self, system_prompt: str, user_prompt: str) -> str:
+        try:
+            from openai import OpenAI
+        except Exception as exc:
+            raise RuntimeError("openai package is unavailable in this environment.") from exc
+
+        client = OpenAI(api_key=settings.openai_api_key)
+        response = client.chat.completions.create(
+            model=settings.openai_model,
+            response_format={"type": "json_object"},
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+        )
+        content = response.choices[0].message.content
+        if not content:
+            raise RuntimeError("OpenAI returned an empty JSON response.")
+        return content
+
+    def _complete_openai_text(self, system_prompt: str, user_prompt: str) -> str:
+        try:
+            from openai import OpenAI
+        except Exception as exc:
+            raise RuntimeError("openai package is unavailable in this environment.") from exc
+
+        client = OpenAI(api_key=settings.openai_api_key)
+        response = client.chat.completions.create(
+            model=settings.openai_model,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+        )
+        content = response.choices[0].message.content
+        if not content:
+            raise RuntimeError("OpenAI returned an empty text response.")
+        return content.strip()
 
     def _complete_ollama_json(self, system_prompt: str, user_prompt: str) -> str:
         payload = {
