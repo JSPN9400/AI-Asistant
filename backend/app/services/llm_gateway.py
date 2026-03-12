@@ -66,12 +66,37 @@ class LLMGateway:
             return self._complete_gemini_json(system_prompt, user_prompt)
         raise RuntimeError("No LLM provider is configured.")
 
+    def complete_text(self, system_prompt: str, user_prompt: str) -> str:
+        if settings.llm_provider == "ollama":
+            return self._complete_ollama_text(system_prompt, user_prompt)
+        if settings.gemini_api_key:
+            return self._complete_gemini_text(system_prompt, user_prompt)
+        raise RuntimeError("No LLM provider is configured.")
+
     def _complete_ollama_json(self, system_prompt: str, user_prompt: str) -> str:
         payload = {
             "model": settings.ollama_model,
             "system": system_prompt,
             "prompt": user_prompt,
             "format": "json",
+            "stream": False,
+        }
+        endpoint = f"{settings.ollama_host.rstrip('/')}/api/generate"
+        req = request.Request(
+            endpoint,
+            data=json.dumps(payload).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with request.urlopen(req, timeout=60) as response:
+            body = json.loads(response.read().decode("utf-8"))
+        return str(body.get("response", "")).strip()
+
+    def _complete_ollama_text(self, system_prompt: str, user_prompt: str) -> str:
+        payload = {
+            "model": settings.ollama_model,
+            "system": system_prompt,
+            "prompt": user_prompt,
             "stream": False,
         }
         endpoint = f"{settings.ollama_host.rstrip('/')}/api/generate"
@@ -108,6 +133,43 @@ class LLMGateway:
             "generationConfig": {
                 "responseMimeType": "application/json",
             },
+        }
+        req = request.Request(
+            endpoint,
+            data=json.dumps(payload).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            with request.urlopen(req, timeout=60) as response:
+                body = json.loads(response.read().decode("utf-8"))
+        except error.HTTPError as exc:
+            detail = exc.read().decode("utf-8", errors="ignore")
+            raise RuntimeError(f"Gemini request failed: {detail or exc.reason}") from exc
+
+        candidates = body.get("candidates", [])
+        if not candidates:
+            raise RuntimeError("Gemini returned no candidates.")
+        parts = candidates[0].get("content", {}).get("parts", [])
+        if not parts:
+            raise RuntimeError("Gemini returned no content parts.")
+        return str(parts[0].get("text", "")).strip()
+
+    def _complete_gemini_text(self, system_prompt: str, user_prompt: str) -> str:
+        endpoint = (
+            "https://generativelanguage.googleapis.com/v1beta/models/"
+            f"{settings.gemini_model}:generateContent?key={parse.quote(settings.gemini_api_key)}"
+        )
+        payload: dict[str, Any] = {
+            "contents": [
+                {
+                    "parts": [
+                        {
+                            "text": f"{system_prompt.strip()}\n\nUser:\n{user_prompt.strip()}",
+                        }
+                    ]
+                }
+            ]
         }
         req = request.Request(
             endpoint,

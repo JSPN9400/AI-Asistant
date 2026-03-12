@@ -107,6 +107,16 @@ body {
   max-width: 720px;
 }
 
+.assistant-greeting {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(255, 251, 244, 0.82);
+  border: 1px solid var(--line);
+  color: var(--accent-strong);
+  font-weight: 600;
+}
+
 .hero-metrics {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -206,6 +216,11 @@ body {
   color: #8b2f22;
 }
 
+.badge-active {
+  background: #d8eee6;
+  color: #0f5a45;
+}
+
 label {
   display: block;
   margin-top: 12px;
@@ -215,6 +230,7 @@ label {
 
 input,
 textarea,
+select,
 button {
   width: 100%;
   margin-top: 6px;
@@ -227,6 +243,13 @@ textarea {
   border: 1px solid var(--line);
   background: #fffdf8;
   padding: 12px 14px;
+  color: var(--text);
+}
+
+select {
+  border: 1px solid var(--line);
+  background: #fffdf8;
+  padding: 10px 12px;
   color: var(--text);
 }
 
@@ -326,6 +349,18 @@ button.ghost {
   padding: 4px 8px;
   border-radius: 999px;
   background: #f0eadf;
+}
+
+.action-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--accent);
+  color: #fff;
+  text-decoration: none;
+  font-weight: 700;
 }
 
 @media (max-width: 1100px) {

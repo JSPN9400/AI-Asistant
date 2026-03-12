@@ -52,6 +52,14 @@
             <span class="status-label">Auth</span>
             <span id="authBadge" class="badge badge-warning">API key</span>
           </div>
+          <div class="status-row">
+            <span class="status-label">Voice Lang</span>
+            <select id="voiceLang">
+              <option value="en-IN">English India</option>
+              <option value="hi-IN">Hindi</option>
+              <option value="en-US">English US</option>
+            </select>
+          </div>
         </div>
         <p id="statusText" class="muted">Waiting for server...</p>
       </section>
@@ -84,6 +92,7 @@
           <span class="eyebrow">Operator Workspace</span>
           <h2>Route natural-language work requests into structured actions</h2>
           <p>Workers can submit tasks, attach files, and get report drafts, summaries, analysis, and search outputs from one low-overhead console.</p>
+          <div id="assistantGreeting" class="assistant-greeting">Assistant is ready.</div>
         </div>
         <div class="hero-metrics">
           <div class="metric">
@@ -115,8 +124,10 @@
           </label>
           <div class="actions">
             <button id="runTaskBtn">Run Task</button>
+            <button id="voiceBtn" class="ghost">Start Voice</button>
             <button id="loadHistoryBtn" class="ghost">History</button>
           </div>
+          <div id="actionPanel" class="stack"></div>
         </div>
 
         <div class="card upload-card">

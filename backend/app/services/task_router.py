@@ -9,6 +9,7 @@ from app.db.session import init_db
 from app.services.audit_service import AuditService
 from app.services.llm_reasoner import LLMReasoner
 from app.services.plugin_manager import PluginManager
+from app.services.response_composer import ResponseComposer
 
 
 class TaskRouter:
@@ -16,6 +17,7 @@ class TaskRouter:
         init_db()
         self.reasoner = LLMReasoner()
         self.plugin_manager = PluginManager()
+        self.response_composer = ResponseComposer()
         self.audit = AuditService()
         self.task_runs = TaskRunRepository()
 
@@ -27,6 +29,11 @@ class TaskRouter:
         structured_task = self.reasoner.reason(user_input)
         plugin = self.plugin_manager.get_plugin(structured_task.task)
         result = plugin.execute(structured_task.parameters, context)
+        assistant_reply = self.response_composer.compose(
+            user_input=user_input,
+            structured_task=structured_task.model_dump(),
+            result=result,
+        )
 
         self.audit.log_task(
             workspace_id=context["workspace_id"],
@@ -40,7 +47,12 @@ class TaskRouter:
                 task_name=structured_task.task,
                 status=result.get("status", "success"),
                 input_text=user_input,
-                output_text=json.dumps(result),
+                output_text=json.dumps(
+                    {
+                        **result,
+                        "assistant_reply": assistant_reply,
+                    }
+                ),
             )
         )
 
@@ -49,6 +61,7 @@ class TaskRouter:
             "parameters": structured_task.parameters,
             "result": {
                 **result,
+                "assistant_reply": assistant_reply,
                 "task_run_id": task_run.id,
             },
         }

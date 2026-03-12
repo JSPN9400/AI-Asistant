@@ -1,5 +1,7 @@
 const $ = (id) => document.getElementById(id);
 let bearerToken = "";
+let recognition = null;
+let listening = false;
 
 function getConfig() {
   return {
@@ -34,6 +36,10 @@ function setBadge(id, variant, text) {
   element.textContent = text;
 }
 
+function updateGreeting(text) {
+  $("assistantGreeting").textContent = text;
+}
+
 function parseAttachments() {
   return $("attachmentsInput").value
     .split(",")
@@ -53,6 +59,7 @@ function updateMetrics({ historyCount = null, pluginCount = null } = {}) {
 
 function renderStructuredResult(data) {
   const container = $("resultStructured");
+  $("actionPanel").innerHTML = "";
   const result = data.result || {};
   const cards = [];
 
@@ -92,7 +99,72 @@ function renderStructuredResult(data) {
     `);
   }
 
+  if (result.url) {
+    cards.push(`
+      <div class="structured-card">
+        <strong>Action URL</strong>
+        <div>${result.url}</div>
+      </div>
+    `);
+    $("actionPanel").innerHTML = `
+      <a class="action-link" href="${result.url}" target="_blank" rel="noopener">Open Result Link</a>
+    `;
+  }
+
   container.innerHTML = cards.join("");
+}
+
+function summarizeForSpeech(data) {
+  const result = data.result || {};
+  return (
+    result.assistant_reply ||
+    result.message ||
+    result.report ||
+    (result.summary && result.summary.join(". ")) ||
+    (result.insights && result.insights.join(". ")) ||
+    `Task ${data.task} completed.`
+  );
+}
+
+function summarizeForDisplay(data) {
+  const result = data.result || {};
+  if (result.assistant_reply) {
+    return result.assistant_reply;
+  }
+  if (result.message) {
+    return result.message;
+  }
+  if (result.report) {
+    return "Report generated successfully.";
+  }
+  if (result.summary?.length) {
+    return result.summary.join(" ");
+  }
+  if (result.insights?.length) {
+    return result.insights.join(" ");
+  }
+  return `Handled ${data.task}.`;
+}
+
+function speakText(text) {
+  const synth = window.speechSynthesis;
+  if (!synth || !text) {
+    return;
+  }
+  synth.cancel();
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = "en-US";
+  synth.speak(utterance);
+}
+
+function executeClientAction(data) {
+  const result = data.result || {};
+  if (result.action === "open_url" && result.url) {
+    const newWindow = window.open(result.url, "_blank", "noopener");
+    if (!newWindow) {
+      updateGreeting("Popup blocked. Use the Open Result Link button.");
+    }
+  }
 }
 
 async function refreshStatus() {
@@ -197,12 +269,12 @@ async function runTask(promptText) {
     }
 
     setBadge("taskBadge", "badge-success", "COMPLETED");
-    setText(
-      "resultSummary",
-      `Task routed to ${data.task}. Output stored under task run ${data.task_id}.`
-    );
+    setText("resultSummary", summarizeForDisplay(data));
+    updateGreeting(summarizeForDisplay(data));
     renderStructuredResult(data);
     setText("taskResult", JSON.stringify(data, null, 2));
+    executeClientAction(data);
+    speakText(summarizeForSpeech(data));
     await loadHistory();
   } catch (error) {
     setBadge("taskBadge", "badge-danger", "FAILED");
@@ -311,6 +383,64 @@ async function uploadFile() {
   }
 }
 
+function setupVoiceRecognition() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    $("voiceBtn").disabled = true;
+    $("voiceBtn").textContent = "Voice Unavailable";
+    updateGreeting("Voice input is unavailable in this browser. Use Chrome or Edge.");
+    return;
+  }
+
+  recognition = new SpeechRecognition();
+  recognition.lang = $("voiceLang").value || "en-IN";
+  recognition.interimResults = false;
+  recognition.maxAlternatives = 1;
+
+  recognition.onstart = () => {
+    listening = true;
+    $("voiceBtn").textContent = "Listening...";
+    setBadge("taskBadge", "badge-active", "VOICE");
+    updateGreeting("Listening for your command.");
+  };
+
+  recognition.onresult = (event) => {
+    const transcript = event.results[0][0].transcript.trim();
+    $("taskInput").value = transcript;
+    updateGreeting(`Heard: ${transcript}`);
+    runTask(transcript);
+  };
+
+  recognition.onerror = (event) => {
+    updateGreeting(`Voice input failed: ${event.error}`);
+  };
+
+  recognition.onend = () => {
+    listening = false;
+    $("voiceBtn").textContent = "Start Voice";
+    if ($("taskBadge").textContent === "VOICE") {
+      setBadge("taskBadge", "badge-muted", "IDLE");
+    }
+  };
+
+  $("voiceLang").addEventListener("change", () => {
+    if (recognition && !listening) {
+      recognition.lang = $("voiceLang").value || "en-IN";
+    }
+  });
+}
+
+function toggleVoiceRecognition() {
+  if (!recognition) {
+    return;
+  }
+  if (listening) {
+    recognition.stop();
+    return;
+  }
+  recognition.start();
+}
+
 document.querySelectorAll("[data-prompt]").forEach((button) => {
   button.addEventListener("click", () => runTask(button.dataset.prompt));
 });
@@ -318,11 +448,15 @@ document.querySelectorAll("[data-prompt]").forEach((button) => {
 $("refreshStatusBtn").addEventListener("click", refreshStatus);
 $("loginBtn").addEventListener("click", login);
 $("runTaskBtn").addEventListener("click", () => runTask());
+$("voiceBtn").addEventListener("click", toggleVoiceRecognition);
 $("loadPluginsBtn").addEventListener("click", loadPlugins);
 $("loadHistoryBtn").addEventListener("click", loadHistory);
 $("uploadBtn").addEventListener("click", uploadFile);
 
 updateMetrics();
+setupVoiceRecognition();
+updateGreeting("Hello. I am ready for typed or voice commands.");
+speakText("Hello. I am ready.");
 refreshStatus();
 loadPlugins();
 loadHistory();
