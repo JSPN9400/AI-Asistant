@@ -44,7 +44,8 @@ class LLMReasoner:
             return heuristic_task
         if self.gateway.is_configured():
             try:
-                payload = self.gateway.complete_json(SYSTEM_PROMPT, user_input)
+                # Use task-aware routing so heavy models are only used when needed.
+                payload = self.gateway.complete_json_for_task("task_router", SYSTEM_PROMPT, user_input)
                 return self._parse_structured_task(payload)
             except Exception:
                 pass

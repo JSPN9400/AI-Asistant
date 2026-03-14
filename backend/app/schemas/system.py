@@ -5,6 +5,7 @@ class LLMSelectionRequest(BaseModel):
     provider: str
     model: str
     enable_cloud_reasoner: bool = True
+    enable_auto_routing: bool = True
 
 
 class LLMStatusResponse(BaseModel):
@@ -20,4 +21,5 @@ class LLMConfigurationResponse(BaseModel):
     provider: str
     model: str
     enable_cloud_reasoner: bool
+    enable_auto_routing: bool
     status: LLMStatusResponse

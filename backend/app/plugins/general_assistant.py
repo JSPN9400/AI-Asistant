@@ -36,7 +36,8 @@ class GeneralAssistantPlugin(BasePlugin):
 
         if self.gateway.is_configured():
             try:
-                answer = self.gateway.complete_text(GENERAL_ASSISTANT_PROMPT, prompt).strip()
+                # Route to the best provider for general chat.
+                answer = self.gateway.complete_text_for_task("general_assistant", GENERAL_ASSISTANT_PROMPT, prompt).strip()
                 if answer:
                     return {
                         "status": "success",

@@ -55,8 +55,18 @@ class LLMGateway:
             "provider": provider_name,
             "model": model_name,
             "enable_cloud_reasoner": settings.enable_cloud_reasoner,
+            "enable_auto_routing": settings.enable_auto_llm_routing,
             "status": self.status(),
         }
+
+    # High-level helpers that can choose a provider per task when auto routing is enabled.
+    def complete_text_for_task(self, task_name: str, system_prompt: str, user_prompt: str) -> str:
+        provider = self._select_provider_for_task(task_name)
+        return self._complete_text_for_provider(provider, system_prompt, user_prompt)
+
+    def complete_json_for_task(self, task_name: str, system_prompt: str, user_prompt: str) -> str:
+        provider = self._select_provider_for_task(task_name)
+        return self._complete_json_for_provider(provider, system_prompt, user_prompt)
 
     def check(self) -> dict[str, str]:
         status = self._current_status()
@@ -79,22 +89,12 @@ class LLMGateway:
         return checked
 
     def complete_json(self, system_prompt: str, user_prompt: str) -> str:
-        if settings.llm_provider == "openai":
-            return self._complete_openai_json(system_prompt, user_prompt)
-        if settings.llm_provider == "ollama":
-            return self._complete_ollama_json(system_prompt, user_prompt)
-        if settings.gemini_api_key:
-            return self._complete_gemini_json(system_prompt, user_prompt)
-        raise RuntimeError("No LLM provider is configured.")
+        # Backwards-compatible: use the globally selected provider.
+        return self._complete_json_for_provider(settings.llm_provider, system_prompt, user_prompt)
 
     def complete_text(self, system_prompt: str, user_prompt: str) -> str:
-        if settings.llm_provider == "openai":
-            return self._complete_openai_text(system_prompt, user_prompt)
-        if settings.llm_provider == "ollama":
-            return self._complete_ollama_text(system_prompt, user_prompt)
-        if settings.gemini_api_key:
-            return self._complete_gemini_text(system_prompt, user_prompt)
-        raise RuntimeError("No LLM provider is configured.")
+        # Backwards-compatible: use the globally selected provider.
+        return self._complete_text_for_provider(settings.llm_provider, system_prompt, user_prompt)
 
     @staticmethod
     def _configured_model_name() -> str:
@@ -238,6 +238,58 @@ class LLMGateway:
 
     def _matches_current_selection(self, status: dict[str, str]) -> bool:
         return status.get("provider") == settings.llm_provider and status.get("model") == self._configured_model_name()
+
+    def _select_provider_for_task(self, task_name: str) -> str:
+        """
+        Simple heuristic routing:
+        - General Q&A and chat -> prefer OpenAI / Gemini if configured.
+        - Long-form reports and summaries -> prefer Gemini, else OpenAI, else Ollama.
+        - Desktop / browser control and web search -> Ollama (local, cheaper).
+        Falls back to globally selected provider when auto routing is disabled.
+        """
+        if not settings.enable_cloud_reasoner or not settings.enable_auto_llm_routing:
+            return settings.llm_provider
+
+        task = (task_name or "").lower()
+
+        # Control / tools: keep them on the local model.
+        if task in {"desktop_control", "browser_navigator", "web_search"}:
+            return "ollama"
+
+        # Reporting / summarization style tasks: prefer Gemini > OpenAI > Ollama.
+        if task in {"sales_report_generator", "meeting_notes_summarizer", "excel_data_analyzer"}:
+            if settings.gemini_api_key:
+                return "gemini"
+            if settings.openai_api_key:
+                return "openai"
+            return "ollama"
+
+        # General assistant / small talk and default.
+        if settings.openai_api_key:
+            return "openai"
+        if settings.gemini_api_key:
+            return "gemini"
+        return "ollama"
+
+    def _complete_json_for_provider(self, provider: str, system_prompt: str, user_prompt: str) -> str:
+        provider_name = (provider or "").strip().lower() or settings.llm_provider
+        if provider_name == "openai":
+            return self._complete_openai_json(system_prompt, user_prompt)
+        if provider_name == "ollama":
+            return self._complete_ollama_json(system_prompt, user_prompt)
+        if provider_name == "gemini" and settings.gemini_api_key:
+            return self._complete_gemini_json(system_prompt, user_prompt)
+        raise RuntimeError("No LLM provider is configured.")
+
+    def _complete_text_for_provider(self, provider: str, system_prompt: str, user_prompt: str) -> str:
+        provider_name = (provider or "").strip().lower() or settings.llm_provider
+        if provider_name == "openai":
+            return self._complete_openai_text(system_prompt, user_prompt)
+        if provider_name == "ollama":
+            return self._complete_ollama_text(system_prompt, user_prompt)
+        if provider_name == "gemini" and settings.gemini_api_key:
+            return self._complete_gemini_text(system_prompt, user_prompt)
+        raise RuntimeError("No LLM provider is configured.")
 
     def _complete_openai_json(self, system_prompt: str, user_prompt: str) -> str:
         try:

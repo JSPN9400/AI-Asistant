@@ -1,251 +1,290 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Sikha Work Assistant</title>
-  <link rel="stylesheet" href="./styles.css">
-</head>
-<body>
-  <div class="app-shell">
-    <aside class="app-sidebar">
-      <div class="sidebar-header">
-        <span class="sidebar-kicker">Workspace AI</span>
-        <h1>Sikha</h1>
-        <p>Chat, live commands, office tasks, and local AI control from one console.</p>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sikha Work Assistant</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <!-- Global loading / reconnect overlay -->
+    <div id="loadingOverlay" class="overlay" aria-live="polite">
+      <div class="overlay-content">
+        <div class="overlay-spinner"></div>
+        <div class="overlay-title">Connecting to Sikha…</div>
+        <p class="overlay-text">
+          Bringing up your local AI backend and checking the model connection.
+        </p>
+        <button id="retryButton" class="btn ghost">Retry</button>
       </div>
+    </div>
 
-      <section class="sidebar-block quick-block">
-        <div class="sidebar-block-head">
-          <h2>Start Fast</h2>
-        </div>
-        <div class="quick-grid">
-          <button data-prompt="Who is the prime minister of India?" class="quick-btn">Ask a question</button>
-          <button data-prompt="open youtube" class="quick-btn">Run live command</button>
-          <button data-prompt="Summarize these meeting notes and extract action items." class="quick-btn">Summarize file</button>
-        </div>
-      </section>
-
-      <details class="sidebar-block settings-panel" open>
-        <summary>Model and Session</summary>
-        <div class="sidebar-form">
-          <div class="inline-head">
-            <h2>Connection</h2>
-            <button id="refreshStatusBtn" class="ghost compact-btn">Refresh</button>
+    <div class="app">
+      <!-- Left side: brand + navigation drawer -->
+      <aside id="drawer" class="sidebar">
+        <header class="sidebar-header">
+          <div class="sidebar-brand">
+            <div class="brand-orbit">
+              <div class="brand-core"></div>
+            </div>
+            <div>
+              <h1 class="brand-title">Sikha</h1>
+              <p class="brand-subtitle">Desktop AI Copilot</p>
+            </div>
           </div>
-          <label>API Base URL
-            <input id="apiBaseUrl" placeholder="Auto-detect current server">
-          </label>
-          <label>API Key
-            <input id="apiKey" value="replace-in-prod">
-          </label>
-          <label>User ID
-            <input id="userId" value="demo-user">
-          </label>
-          <label>Workspace ID
-            <input id="workspaceId" value="demo-workspace">
-          </label>
-          <label>Login Email
-            <input id="loginEmail" value="demo@company.com">
-          </label>
-          <label>Password
-            <input id="loginPassword" type="password" value="demo-pass">
-          </label>
-          <button id="loginBtn">Sign In</button>
+          <button id="drawerClose" class="icon-button icon-button-ghost" aria-label="Close menu">
+            ✕
+          </button>
+        </header>
 
-          <div class="status-stack">
-            <div class="status-row">
-              <span class="status-label">API</span>
-              <span id="apiBadge" class="badge badge-muted">Checking</span>
+        <nav class="sidebar-nav">
+          <button class="nav-item drawer-nav-item active" data-section="chat">
+            <span class="nav-icon">💬</span>
+            <span>Chat</span>
+          </button>
+          <button class="nav-item drawer-nav-item" data-section="tools">
+            <span class="nav-icon">🛠</span>
+            <span>Tools</span>
+          </button>
+          <button class="nav-item drawer-nav-item" data-section="history">
+            <span class="nav-icon">🕒</span>
+            <span>History</span>
+          </button>
+          <button class="nav-item drawer-nav-item" data-section="settings">
+            <span class="nav-icon">⚙</span>
+            <span>Settings</span>
+          </button>
+        </nav>
+
+        <div class="sidebar-scroll drawer-content">
+          <!-- Chat quick start -->
+          <section id="drawerChat" class="drawer-section active">
+            <h2 class="section-title">Quick Start</h2>
+            <div class="chip-grid">
+              <button
+                class="chip quick-btn"
+                data-prompt="Who is the prime minister of India?"
+              >
+                Ask a question
+              </button>
+              <button class="chip quick-btn" data-prompt="open youtube">
+                Run live command
+              </button>
+              <button
+                class="chip quick-btn"
+                data-prompt="Summarize these meeting notes and extract action items."
+              >
+                Summarize file
+              </button>
             </div>
-            <div class="status-row">
-              <span class="status-label">Reasoner</span>
-              <span id="llmBadge" class="badge badge-muted">Unknown</span>
+          </section>
+
+          <!-- Tools section -->
+          <section id="drawerTools" class="drawer-section">
+            <h2 class="section-title">Automation Tools</h2>
+            <div class="card-grid">
+              <article class="tool-card">
+                <h3>Web Actions</h3>
+                <p>Search Google, open websites, or play YouTube content.</p>
+                <button class="btn small tool-btn" data-action="web-search">
+                  Use web tools
+                </button>
+              </article>
+              <article class="tool-card">
+                <h3>System Control</h3>
+                <p>Open common desktop apps and run system-style commands.</p>
+                <button class="btn small tool-btn" data-action="system-open">
+                  System actions
+                </button>
+              </article>
+              <article class="tool-card">
+                <h3>Email & Gmail</h3>
+                <p>Draft replies, client emails, and check your inbox.</p>
+                <button class="btn small tool-btn" data-action="gmail-check">
+                  Email tools
+                </button>
+              </article>
+              <article class="tool-card">
+                <h3>Voice & Speech</h3>
+                <p>Configure voice capture and playback preferences.</p>
+                <button class="btn small tool-btn" data-action="voice-setup">
+                  Voice features
+                </button>
+              </article>
             </div>
-            <div class="status-row">
-              <span class="status-label">LLM State</span>
-              <span id="llmStateBadge" class="badge badge-muted">Unknown</span>
+          </section>
+
+          <!-- History section -->
+          <section id="drawerHistory" class="drawer-section">
+            <h2 class="section-title">Recent Commands</h2>
+            <div id="historyList" class="history-list">
+              Loading history…
             </div>
-            <div class="status-row">
-              <span class="status-label">Auth</span>
-              <span id="authBadge" class="badge badge-warning">API key</span>
-            </div>
-            <div class="status-row">
-              <span class="status-label">Voice</span>
+          </section>
+
+          <!-- Settings section -->
+          <section id="drawerSettings" class="drawer-section">
+            <h2 class="section-title">Assistant Settings</h2>
+
+            <label class="field">
+              <span>Voice language</span>
               <select id="voiceLang">
-                <option value="en-IN">English India</option>
+                <option value="en-IN">English (India)</option>
                 <option value="hi-IN">Hindi</option>
-                <option value="en-US">English US</option>
+                <option value="en-US">English (US)</option>
               </select>
+            </label>
+
+            <label class="field">
+              <span>LLM provider</span>
+              <select id="llmProvider">
+                <option value="ollama">Ollama</option>
+                <option value="openai">OpenAI</option>
+                <option value="gemini">Gemini</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span>Model name</span>
+              <input id="llmModel" placeholder="phi3:mini" />
+            </label>
+
+            <label class="field field-inline">
+              <div class="field-inline-main">
+                <span>Smart model routing</span>
+                <p class="field-hint">
+                  Let Sikha choose between OpenAI, Gemini, and Ollama automatically, based on the task.
+                </p>
+              </div>
+              <input id="llmAutoRouting" type="checkbox" checked />
+            </label>
+
+            <label class="field field-inline">
+              <div class="field-inline-main">
+                <span>Enable AI routing</span>
+                <p class="field-hint">
+                  When off, Sikha uses deterministic rules and local tools only.
+                </p>
+              </div>
+              <input id="llmEnabled" type="checkbox" checked />
+            </label>
+
+            <div class="status-pills">
+              <div class="status-row">
+                <span class="status-label">AI status</span>
+                <span id="llmBadge" class="pill pill-success">Ready</span>
+              </div>
+              <div class="status-row">
+                <span class="status-label">Voice</span>
+                <span id="voiceBadge" class="pill pill-warning">Checking…</span>
+              </div>
             </div>
-          </div>
 
-          <div class="inline-head llm-head">
-            <h2>LLM Control</h2>
-            <span class="mini-note">Choose your model</span>
-          </div>
-          <label>LLM Provider
-            <select id="llmProvider">
-              <option value="ollama">Ollama</option>
-              <option value="openai">OpenAI</option>
-              <option value="gemini">Gemini</option>
-            </select>
-          </label>
-          <label>LLM Model
-            <input id="llmModel" placeholder="phi3:mini">
-          </label>
-          <label class="toggle-row">
-            <input id="llmEnabled" type="checkbox" checked>
-            <span>Enable cloud reasoner</span>
-          </label>
-          <div class="actions compact-actions">
-            <button id="saveLlmBtn" class="ghost">Save LLM</button>
-            <button id="checkLlmBtn" class="ghost">Check Model</button>
-          </div>
-          <p id="statusText" class="muted sidebar-note">Waiting for server...</p>
+            <button id="saveSettingsBtn" class="btn primary">
+              Save settings
+            </button>
+          </section>
         </div>
-      </details>
 
-      <details class="sidebar-block settings-panel">
-        <summary>Plugins</summary>
-        <div class="inline-head">
-          <h2>Plugins</h2>
-          <button id="loadPluginsBtn" class="ghost compact-btn">Reload</button>
-        </div>
-        <div id="pluginList" class="stack muted">No plugin data loaded.</div>
-      </details>
-    </aside>
+        <footer class="sidebar-footer">
+          <p class="sidebar-tip">
+            Tip: try “open youtube”, “google pe search karo…”, or “summarize this
+            file”.
+          </p>
+        </footer>
+      </aside>
 
-    <main class="chat-shell">
-      <header class="chat-topbar">
-        <div>
-          <span class="topbar-kicker">AI Workspace</span>
-          <h2 id="modeHeadline">Route natural-language work requests into structured actions</h2>
-          <p id="modeDescription">Workers can submit tasks, attach files, and get reports, summaries, analysis, and search outputs from one assistant workspace.</p>
-        </div>
-        <div class="topbar-metrics">
-          <div class="metric-card">
-            <strong id="metricTaskCount">0</strong>
-            <span>Tasks</span>
-          </div>
-          <div class="metric-card">
-            <strong id="metricPluginCount">0</strong>
-            <span>Plugins</span>
-          </div>
-          <div class="metric-card">
-            <strong id="metricWorkspace">demo</strong>
-            <span>Workspace</span>
-          </div>
-        </div>
-      </header>
-
-      <section class="mode-bar chatgpt-mode-bar">
-        <button class="mode-chip active" data-mode="chat">
-          <span class="mode-chip-title">Chat</span>
-          <span class="mode-chip-copy">Natural questions and conversation</span>
+      <!-- Right side: chat experience -->
+      <main class="shell">
+        <!-- Mobile drawer toggle -->
+        <button
+          id="drawerToggle"
+          class="icon-button drawer-toggle"
+          aria-label="Open menu"
+        >
+          <span></span><span></span><span></span>
         </button>
-        <button class="mode-chip" data-mode="live">
-          <span class="mode-chip-title">Live</span>
-          <span class="mode-chip-copy">Voice-first actions and quick commands</span>
-        </button>
-        <button class="mode-chip" data-mode="office">
-          <span class="mode-chip-title">Office</span>
-          <span class="mode-chip-copy">Reports, files, drafts, and summaries</span>
-        </button>
-      </section>
 
-      <section class="chat-workspace">
-        <div class="conversation-column">
-          <div class="conversation-scroll">
-            <section class="message-block system-block">
-              <div class="message-avatar">S</div>
-              <div class="message-card intro-card">
-                <div class="message-head">
-                  <h3 id="modeTitle">Chat Mode</h3>
-                  <span id="modeBadge" class="pill">General assistant</span>
+        <!-- Decorative animated gradient background -->
+        <div class="shell-glow shell-glow-1"></div>
+        <div class="shell-glow shell-glow-2"></div>
+
+        <!-- Chat header -->
+        <header class="shell-header">
+          <div>
+            <h2 class="shell-title">Chat Mode</h2>
+            <p class="shell-subtitle">
+              Natural conversation, live commands, and work assistance.
+            </p>
+          </div>
+          <div class="shell-status">
+            <span id="statusIndicator" class="pill pill-success">Ready</span>
+          </div>
+        </header>
+
+        <!-- Chat body -->
+        <section class="chat-main">
+          <div class="chat-scroll">
+            <div class="messages" id="messagesArea">
+              <article class="message message-assistant">
+                <div class="avatar avatar-assistant">🤖</div>
+                <div class="bubble">
+                  <div id="assistantGreeting">
+                    Hello! I'm Sikha, your AI assistant. How can I help you today?
+                  </div>
                 </div>
-                <p id="modeHint" class="muted">Use this mode for normal Q&amp;A, natural conversation, and quick asks.</p>
-                <div class="assistant-greeting" id="assistantGreeting">Assistant is ready.</div>
-                <div class="assistant-model-status" id="modelStatus">Model status unknown.</div>
-                <div id="modeQuickGrid" class="mode-quick-grid"></div>
-              </div>
-            </section>
-
-            <section class="message-block result-block">
-              <div class="message-avatar user-avatar">U</div>
-              <div class="message-card result-card">
-                <div class="message-head">
-                  <h3 id="resultTitle">Assistant Reply</h3>
-                  <span id="taskBadge" class="badge badge-muted">Idle</span>
-                </div>
-                <div id="resultSummary" class="result-summary muted">Run a task to see routed intent and output.</div>
-                <div id="resultStructured" class="structured-view"></div>
-                <div id="actionPanel" class="stack"></div>
-                <pre id="taskResult" class="result">No task run yet.</pre>
-              </div>
-            </section>
+              </article>
+            </div>
           </div>
 
-          <section class="composer-shell">
-            <div class="composer-head">
-              <div>
-                <h3 id="composerTitle">Task Runner</h3>
-                <span id="composerBadge" class="pill alt">Structured execution</span>
+          <!-- Composer -->
+          <div class="composer">
+            <div class="composer-inner">
+              <textarea
+                id="messageInput"
+                rows="1"
+                placeholder="Type your message or say it out loud…"
+              ></textarea>
+              <div class="composer-actions">
+                <button
+                  id="attachBtn"
+                  class="icon-button"
+                  title="Attach file"
+                  type="button"
+                >
+                  📎
+                </button>
+                <input id="fileInput" type="file" hidden />
+                <button
+                  id="voiceBtn"
+                  class="icon-button"
+                  title="Voice input"
+                  type="button"
+                >
+                  🎙
+                </button>
+                <button
+                  id="sendBtn"
+                  class="icon-button primary"
+                  title="Send"
+                  type="button"
+                >
+                  ➤
+                </button>
               </div>
-              <button id="loadHistoryBtn" class="ghost compact-btn">History</button>
             </div>
-            <label id="composerLabel" class="composer-label">Task request
-              <textarea id="taskInput" rows="4" placeholder="Create a weekly sales report from this data."></textarea>
-            </label>
-            <label id="attachmentsLabel">Attachment IDs
-              <input id="attachmentsInput" placeholder="file-1,file-2">
-            </label>
-            <div class="composer-actions">
-              <button id="runTaskBtn">Send</button>
-              <button id="voiceBtn" class="ghost">Start Voice</button>
-            </div>
-          </section>
-        </div>
+            <p class="composer-hint">
+              Examples: “open youtube”, “ek note banao…”, “who is APJ Abdul Kalam?”
+            </p>
+          </div>
+        </section>
+      </main>
+    </div>
 
-        <aside class="inspector-column">
-          <section class="inspector-card upload-card" id="uploadCard">
-            <div class="message-head">
-              <h3 id="uploadTitle">Workspace Files</h3>
-              <span class="pill alt">Source material</span>
-            </div>
-            <label>Upload a file
-              <input id="fileInput" type="file">
-            </label>
-            <button id="uploadBtn">Upload File</button>
-            <div id="uploadResult" class="result compact">No upload yet.</div>
-          </section>
+    <!-- Clickable backdrop for mobile drawer -->
+    <div id="drawerOverlay" class="backdrop"></div>
 
-          <section class="inspector-card">
-            <div class="message-head">
-              <h3 id="modeFocusTitle">Chat Focus</h3>
-              <span id="modeFocusBadge" class="pill alt">Current mode</span>
-            </div>
-            <div id="modeFocusList" class="mode-focus-list"></div>
-          </section>
-
-          <section class="inspector-card">
-            <div class="message-head">
-              <h3>Mode Signals</h3>
-            </div>
-            <div id="modeSignalList" class="mode-signal-list"></div>
-          </section>
-
-          <section class="inspector-card history-card">
-            <div class="message-head">
-              <h3 id="historyTitle">Recent History</h3>
-            </div>
-            <div id="historyList" class="history-list muted">No history loaded.</div>
-          </section>
-        </aside>
-      </section>
-    </main>
-  </div>
-
-  <script src="./app.js"></script>
-</body>
+    <script src="./app.js"></script>
+  </body>
 </html>
+

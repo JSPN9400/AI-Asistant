@@ -26,6 +26,7 @@ def llm_configuration(
         provider=status["provider"],
         model=status["model"],
         enable_cloud_reasoner=status["state"] != "disabled",
+        enable_auto_routing=bool(getattr(settings, "enable_auto_llm_routing", True)),
         status=LLMStatusResponse(**status),
     )
 
@@ -44,10 +45,16 @@ def update_llm_configuration(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
+    # Update auto-routing flag separately so the gateway can choose providers per task.
+    from app.config import settings as _settings
+
+    _settings.enable_auto_llm_routing = payload.enable_auto_routing
+
     return LLMConfigurationResponse(
         provider=str(data["provider"]),
         model=str(data["model"]),
         enable_cloud_reasoner=bool(data["enable_cloud_reasoner"]),
+        enable_auto_routing=bool(_settings.enable_auto_llm_routing),
         status=LLMStatusResponse(**data["status"]),
     )
 

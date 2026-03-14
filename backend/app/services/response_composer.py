@@ -31,7 +31,9 @@ class ResponseComposer:
                     f"Execution result: {result}\n"
                     "Respond as the assistant to the user."
                 )
-                response = self.gateway.complete_text(REPLY_SYSTEM_PROMPT, prompt).strip()
+                # Use task-aware routing for reply polishing.
+                task_name = structured_task.get("task", "general_assistant")
+                response = self.gateway.complete_text_for_task(task_name, REPLY_SYSTEM_PROMPT, prompt).strip()
                 if response:
                     return response
             except Exception:
