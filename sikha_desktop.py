@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import os
 import socket
+import subprocess
 import threading
 import time
 import webbrowser
 from contextlib import closing
 from pathlib import Path
-from urllib.request import urlopen
+from urllib.request import Request, urlopen
 
 import tkinter as tk
 from dotenv import load_dotenv
@@ -130,7 +131,7 @@ class StartupSplash:
 
         tk.Label(
             frame,
-            text="Launching local backend and connecting to OpenAI.",
+            text="Launching local backend and connecting to Ollama.",
             font=("Segoe UI", 10),
             bg="#f7f2e7",
             fg="#5d6258",
@@ -163,19 +164,62 @@ class StartupSplash:
 def _configure_default_llm() -> None:
     _load_environment()
     os.environ.setdefault("ASSISTANT_ENABLE_CLOUD_REASONER", "true")
-    os.environ.setdefault("ASSISTANT_LLM_PROVIDER", "openai")
-    os.environ.setdefault("OPENAI_MODEL", "gpt-4.1-mini")
+    os.environ.setdefault("ASSISTANT_LLM_PROVIDER", "ollama")
+    os.environ.setdefault("OLLAMA_MODEL", "phi3:mini")
+    os.environ.setdefault("OLLAMA_HOST", "http://127.0.0.1:11434")
 
 
-def _ensure_openai_configured() -> None:
+def _ollama_ready(host: str) -> bool:
+    try:
+        req = Request(f"{host.rstrip('/')}/api/tags", method="GET")
+        with urlopen(req, timeout=2) as response:
+            return response.status == 200
+    except Exception:
+        return False
+
+
+def _ollama_model_available(host: str, model_name: str) -> bool:
+    try:
+        req = Request(f"{host.rstrip('/')}/api/tags", method="GET")
+        with urlopen(req, timeout=3) as response:
+            import json
+
+            body = json.loads(response.read().decode("utf-8"))
+        models = [item.get("name", "") for item in body.get("models", [])]
+        return any(name == model_name or name.startswith(f"{model_name}:") for name in models)
+    except Exception:
+        return False
+
+
+def _ensure_ollama_running() -> None:
     _load_environment()
-    api_key = os.environ.get("OPENAI_API_KEY", "").strip()
-    if api_key:
+    host = os.environ.get("OLLAMA_HOST", "http://127.0.0.1:11434")
+    model = os.environ.get("OLLAMA_MODEL", "phi3:mini")
+    if _ollama_ready(host):
+        if not _ollama_model_available(host, model):
+            raise RuntimeError(f"Ollama is running, but model '{model}' is not installed.")
         return
-    raise RuntimeError(
-        "OpenAI is selected as the online LLM, but OPENAI_API_KEY is missing. "
-        "Add it in .env or set OPENAI_API_KEY before launching Sikha Desktop."
-    )
+
+    creation_flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+    try:
+        subprocess.Popen(
+            ["ollama", "serve"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            creationflags=creation_flags,
+        )
+    except FileNotFoundError as exc:
+        raise RuntimeError("Ollama is not installed. Install Ollama or change the desktop app LLM provider.") from exc
+
+    deadline = time.time() + 20
+    while time.time() < deadline:
+        if _ollama_ready(host):
+            if not _ollama_model_available(host, model):
+                raise RuntimeError(f"Ollama started, but model '{model}' is not installed.")
+            return
+        time.sleep(0.5)
+
+    raise RuntimeError("Ollama did not start in time. Start Ollama manually and relaunch Sikha.")
 
 
 def _load_environment() -> None:
@@ -187,11 +231,11 @@ def main() -> None:
     splash = StartupSplash()
 
     try:
-        splash.update("Configuring OpenAI defaults...")
+        splash.update("Configuring Ollama defaults...")
         _configure_default_llm()
 
-        splash.update("Checking OpenAI configuration...")
-        _ensure_openai_configured()
+        splash.update("Checking Ollama service...")
+        _ensure_ollama_running()
 
         splash.update("Starting local AI backend...")
         backend = LocalBackend()

@@ -3,6 +3,11 @@ let bearerToken = "";
 let recognition = null;
 let listening = false;
 let currentMode = "chat";
+const MODEL_PRESETS = {
+  ollama: "phi3:mini",
+  openai: "gpt-4.1-mini",
+  gemini: "gemini-2.0-flash",
+};
 
 const MODES = {
   chat: {
@@ -140,10 +145,61 @@ function setText(id, value) {
   $(id).textContent = value;
 }
 
+function setValue(id, value) {
+  $(id).value = value;
+}
+
 function setBadge(id, variant, text) {
   const element = $(id);
   element.className = `badge ${variant}`;
   element.textContent = text;
+}
+
+function badgeVariantForLLMState(state, available) {
+  if (state === "ready") {
+    return "badge-success";
+  }
+  if (state === "exhausted" || state === "missing_key" || available === "false") {
+    return "badge-warning";
+  }
+  if (state === "offline" || state === "package_missing") {
+    return "badge-danger";
+  }
+  return "badge-muted";
+}
+
+function syncLLMControls(llm) {
+  if (!llm) {
+    return;
+  }
+  setValue("llmProvider", llm.provider || "ollama");
+  setValue("llmModel", llm.model || MODEL_PRESETS[llm.provider] || MODEL_PRESETS.ollama);
+  $("llmEnabled").checked = llm.state !== "disabled";
+}
+
+function applyLLMStatus(llm) {
+  if (!llm) {
+    return;
+  }
+
+  const providerLabel = `${llm.provider}:${llm.model}`;
+  const stateLabel = (llm.state || "unknown").replace(/_/g, " ").toUpperCase();
+  const stateVariant = badgeVariantForLLMState(llm.state, llm.available);
+
+  setBadge("llmStateBadge", stateVariant, stateLabel);
+  if (llm.state === "ready") {
+    setBadge("llmBadge", "badge-success", providerLabel);
+    updateModelStatus(`Connected to ${llm.provider} / ${llm.model}.`);
+  } else if (llm.state === "disabled") {
+    setBadge("llmBadge", "badge-muted", providerLabel);
+    updateModelStatus(llm.message || "Cloud reasoner is disabled.");
+  } else {
+    setBadge("llmBadge", stateVariant, providerLabel);
+    updateModelStatus(llm.message || `Model unavailable for ${llm.provider}.`);
+  }
+
+  setText("statusText", llm.message || "LLM status updated.");
+  syncLLMControls(llm);
 }
 
 function updateGreeting(text) {
@@ -363,22 +419,76 @@ async function refreshStatus() {
 
     setBadge("apiBadge", "badge-success", health.status.toUpperCase());
     setBadge("authBadge", bearerToken ? "badge-success" : "badge-warning", bearerToken ? "Bearer" : "API key");
-
-    const llm = system.llm || {};
-    if (llm.available === "true") {
-      setBadge("llmBadge", "badge-success", `${llm.provider}:${llm.model}`);
-      updateModelStatus(`Connected to ${llm.provider} / ${llm.model}.`);
-    } else {
-      setBadge("llmBadge", "badge-warning", `${llm.provider}:fallback`);
-      updateModelStatus(llm.message || `Model unavailable for ${llm.provider}.`);
-    }
-
-    setText("statusText", llm.message || `Connected to ${apiBaseUrl}`);
+    applyLLMStatus(system.llm || {});
   } catch (error) {
     setBadge("apiBadge", "badge-danger", "OFFLINE");
     setBadge("llmBadge", "badge-danger", "UNKNOWN");
+    setBadge("llmStateBadge", "badge-danger", "OFFLINE");
     updateModelStatus("Model status unavailable because the server is offline.");
     setText("statusText", `Server unavailable: ${error.message}`);
+  }
+}
+
+async function loadLLMConfiguration() {
+  const config = getConfig();
+  try {
+    const response = await fetch(`${config.apiBaseUrl}/system/llm`, {
+      headers: authHeaders(),
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.detail || "Could not load LLM configuration");
+    }
+    syncLLMControls(data.status);
+    applyLLMStatus(data.status);
+  } catch (error) {
+    setText("statusText", `LLM configuration load failed: ${error.message}`);
+  }
+}
+
+async function saveLLMConfiguration() {
+  const config = getConfig();
+  const provider = $("llmProvider").value;
+  const model = $("llmModel").value.trim() || MODEL_PRESETS[provider] || MODEL_PRESETS.ollama;
+  const enableCloudReasoner = $("llmEnabled").checked;
+
+  try {
+    const response = await fetch(`${config.apiBaseUrl}/system/llm`, {
+      method: "POST",
+      headers: authHeaders(),
+      body: JSON.stringify({
+        provider,
+        model,
+        enable_cloud_reasoner: enableCloudReasoner,
+      }),
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.detail || "Could not update LLM configuration");
+    }
+    syncLLMControls(data.status);
+    applyLLMStatus(data.status);
+    updateGreeting(`LLM switched to ${data.provider} / ${data.model}.`);
+  } catch (error) {
+    setText("statusText", `LLM update failed: ${error.message}`);
+  }
+}
+
+async function checkLLMConfiguration() {
+  const config = getConfig();
+  setText("statusText", "Running a tiny LLM health check...");
+  try {
+    const response = await fetch(`${config.apiBaseUrl}/system/llm/check`, {
+      method: "POST",
+      headers: authHeaders(),
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.detail || "Could not check LLM configuration");
+    }
+    applyLLMStatus(data);
+  } catch (error) {
+    setText("statusText", `LLM health check failed: ${error.message}`);
   }
 }
 
@@ -411,7 +521,7 @@ async function login() {
     $("workspaceId").value = data.workspace_id;
     setBadge("authBadge", "badge-success", `Bearer:${data.role}`);
     setText("statusText", `Signed in as ${data.user_id} in ${data.workspace_id}.`);
-    await Promise.all([refreshStatus(), loadPlugins(), loadHistory()]);
+    await Promise.all([refreshStatus(), loadPlugins(), loadHistory(), loadLLMConfiguration()]);
   } catch (error) {
     bearerToken = "";
     setBadge("authBadge", "badge-danger", "Login failed");
@@ -641,6 +751,14 @@ $("voiceBtn").addEventListener("click", toggleVoiceRecognition);
 $("loadPluginsBtn").addEventListener("click", loadPlugins);
 $("loadHistoryBtn").addEventListener("click", loadHistory);
 $("uploadBtn").addEventListener("click", uploadFile);
+$("saveLlmBtn").addEventListener("click", saveLLMConfiguration);
+$("checkLlmBtn").addEventListener("click", checkLLMConfiguration);
+$("llmProvider").addEventListener("change", () => {
+  const provider = $("llmProvider").value;
+  if (!$("llmModel").value.trim() || $("llmModel").value === MODEL_PRESETS.openai || $("llmModel").value === MODEL_PRESETS.ollama || $("llmModel").value === MODEL_PRESETS.gemini) {
+    setValue("llmModel", MODEL_PRESETS[provider] || MODEL_PRESETS.ollama);
+  }
+});
 
 updateMetrics();
 setupVoiceRecognition();
@@ -648,5 +766,12 @@ applyMode(currentMode);
 updateGreeting("Hello. I am ready for typed or voice commands.");
 speakText("Hello. I am ready.");
 refreshStatus();
+loadLLMConfiguration();
 loadPlugins();
 loadHistory();
+
+
+
+
+
+

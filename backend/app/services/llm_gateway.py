@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime
 from typing import Any
 from urllib import error, parse, request
 
@@ -8,6 +9,8 @@ from app.config import settings
 
 
 class LLMGateway:
+    _last_status: dict[str, str] | None = None
+
     def is_configured(self) -> bool:
         if not settings.enable_cloud_reasoner:
             return False
@@ -18,55 +21,62 @@ class LLMGateway:
         return bool(settings.gemini_api_key)
 
     def status(self) -> dict[str, str]:
-        if not settings.enable_cloud_reasoner:
-            return {
-                "provider": settings.llm_provider,
-                "model": self._configured_model_name(),
-                "available": "false",
-                "message": "Cloud reasoner disabled. Using deterministic fallback routing.",
-            }
-        if settings.llm_provider == "openai":
-            return {
-                "provider": "openai",
-                "model": settings.openai_model,
-                "available": str(bool(settings.openai_api_key)).lower(),
-                "message": "OpenAI API key found." if settings.openai_api_key else "Set OPENAI_API_KEY to enable OpenAI.",
-            }
-        if settings.llm_provider == "ollama":
-            try:
-                req = request.Request(f"{settings.ollama_host.rstrip('/')}/api/tags", method="GET")
-                with request.urlopen(req, timeout=5) as response:
-                    body = json.loads(response.read().decode("utf-8"))
-                models = [item.get("name", "") for item in body.get("models", [])]
-                available = any(
-                    name == settings.ollama_model or name.startswith(f"{settings.ollama_model}:")
-                    for name in models
-                )
-                message = (
-                    f"Ollama model '{settings.ollama_model}' is ready."
-                    if available
-                    else f"Ollama is reachable, but model '{settings.ollama_model}' is unavailable."
-                )
-                return {
-                    "provider": "ollama",
-                    "model": settings.ollama_model,
-                    "available": str(available).lower(),
-                    "message": message,
+        status = self._current_status()
+        if self._last_status and self._matches_current_selection(self._last_status):
+            status.update(
+                {
+                    "state": self._last_status.get("state", status["state"]),
+                    "message": self._last_status.get("message", status["message"]),
+                    "checked_at": self._last_status.get("checked_at"),
                 }
-            except Exception as exc:
-                return {
-                    "provider": "ollama",
-                    "model": settings.ollama_model,
-                    "available": "false",
-                    "message": f"Ollama check failed: {exc}",
-                }
+            )
+        return status
 
+    def configure(self, *, provider: str, model: str, enable_cloud_reasoner: bool) -> dict[str, object]:
+        provider_name = provider.strip().lower()
+        if provider_name not in {"ollama", "openai", "gemini"}:
+            raise ValueError("Provider must be one of: ollama, openai, gemini.")
+
+        model_name = model.strip()
+        if not model_name:
+            raise ValueError("Model name is required.")
+
+        settings.enable_cloud_reasoner = enable_cloud_reasoner
+        settings.llm_provider = provider_name
+        if provider_name == "ollama":
+            settings.ollama_model = model_name
+        elif provider_name == "openai":
+            settings.openai_model = model_name
+        else:
+            settings.gemini_model = model_name
+
+        self._last_status = None
         return {
-            "provider": "gemini",
-            "model": settings.gemini_model,
-            "available": str(bool(settings.gemini_api_key)).lower(),
-            "message": "Gemini API key found." if settings.gemini_api_key else "Set GEMINI_API_KEY to enable Gemini.",
+            "provider": provider_name,
+            "model": model_name,
+            "enable_cloud_reasoner": settings.enable_cloud_reasoner,
+            "status": self.status(),
         }
+
+    def check(self) -> dict[str, str]:
+        status = self._current_status()
+        status["checked_at"] = datetime.now(UTC).isoformat()
+        if not settings.enable_cloud_reasoner:
+            self._last_status = status
+            return status
+
+        if settings.llm_provider == "ollama":
+            self._last_status = status
+            return status
+
+        if settings.llm_provider == "openai":
+            checked = self._check_openai(status)
+            self._last_status = checked
+            return checked
+
+        checked = self._check_gemini(status)
+        self._last_status = checked
+        return checked
 
     def complete_json(self, system_prompt: str, user_prompt: str) -> str:
         if settings.llm_provider == "openai":
@@ -93,6 +103,141 @@ class LLMGateway:
         if settings.llm_provider == "ollama":
             return settings.ollama_model
         return settings.gemini_model
+
+    def _current_status(self) -> dict[str, str]:
+        if not settings.enable_cloud_reasoner:
+            return {
+                "provider": settings.llm_provider,
+                "model": self._configured_model_name(),
+                "available": "false",
+                "state": "disabled",
+                "message": "Cloud reasoner disabled. Using deterministic fallback routing.",
+                "checked_at": None,
+            }
+        if settings.llm_provider == "openai":
+            available = bool(settings.openai_api_key)
+            return {
+                "provider": "openai",
+                "model": settings.openai_model,
+                "available": str(available).lower(),
+                "state": "configured" if available else "missing_key",
+                "message": "OpenAI API key found." if available else "Set OPENAI_API_KEY to enable OpenAI.",
+                "checked_at": None,
+            }
+        if settings.llm_provider == "ollama":
+            try:
+                req = request.Request(f"{settings.ollama_host.rstrip('/')}/api/tags", method="GET")
+                with request.urlopen(req, timeout=5) as response:
+                    body = json.loads(response.read().decode("utf-8"))
+                models = [item.get("name", "") for item in body.get("models", [])]
+                available = any(
+                    name == settings.ollama_model or name.startswith(f"{settings.ollama_model}:")
+                    for name in models
+                )
+                message = (
+                    f"Ollama model '{settings.ollama_model}' is ready."
+                    if available
+                    else f"Ollama is reachable, but model '{settings.ollama_model}' is unavailable."
+                )
+                return {
+                    "provider": "ollama",
+                    "model": settings.ollama_model,
+                    "available": str(available).lower(),
+                    "state": "ready" if available else "missing_model",
+                    "message": message,
+                    "checked_at": None,
+                }
+            except Exception as exc:
+                return {
+                    "provider": "ollama",
+                    "model": settings.ollama_model,
+                    "available": "false",
+                    "state": "offline",
+                    "message": f"Ollama check failed: {exc}",
+                    "checked_at": None,
+                }
+
+        available = bool(settings.gemini_api_key)
+        return {
+            "provider": "gemini",
+            "model": settings.gemini_model,
+            "available": str(available).lower(),
+            "state": "configured" if available else "missing_key",
+            "message": "Gemini API key found." if available else "Set GEMINI_API_KEY to enable Gemini.",
+            "checked_at": None,
+        }
+
+    def _check_openai(self, base_status: dict[str, str]) -> dict[str, str]:
+        if not settings.openai_api_key:
+            return base_status
+        try:
+            from openai import OpenAI
+        except Exception as exc:
+            return {
+                **base_status,
+                "available": "false",
+                "state": "package_missing",
+                "message": f"openai package is unavailable: {exc}",
+            }
+
+        try:
+            client = OpenAI(api_key=settings.openai_api_key)
+            response = client.chat.completions.create(
+                model=settings.openai_model,
+                messages=[
+                    {"role": "system", "content": "Reply with READY only."},
+                    {"role": "user", "content": "ready"},
+                ],
+                max_tokens=3,
+            )
+            content = response.choices[0].message.content or ""
+            return {
+                **base_status,
+                "available": "true",
+                "state": "ready",
+                "message": f"OpenAI responded successfully with {settings.openai_model}.",
+            }
+        except Exception as exc:
+            message = str(exc)
+            lowered = message.lower()
+            if "insufficient_quota" in lowered or "quota" in lowered or "429" in lowered:
+                state = "exhausted"
+            else:
+                state = "offline"
+            return {
+                **base_status,
+                "available": "false",
+                "state": state,
+                "message": message,
+            }
+
+    def _check_gemini(self, base_status: dict[str, str]) -> dict[str, str]:
+        if not settings.gemini_api_key:
+            return base_status
+        try:
+            self._complete_gemini_text("Reply with READY only.", "ready")
+            return {
+                **base_status,
+                "available": "true",
+                "state": "ready",
+                "message": f"Gemini responded successfully with {settings.gemini_model}.",
+            }
+        except Exception as exc:
+            message = str(exc)
+            lowered = message.lower()
+            if "quota" in lowered or "429" in lowered or "resource_exhausted" in lowered:
+                state = "exhausted"
+            else:
+                state = "offline"
+            return {
+                **base_status,
+                "available": "false",
+                "state": state,
+                "message": message,
+            }
+
+    def _matches_current_selection(self, status: dict[str, str]) -> bool:
+        return status.get("provider") == settings.llm_provider and status.get("model") == self._configured_model_name()
 
     def _complete_openai_json(self, system_prompt: str, user_prompt: str) -> str:
         try:

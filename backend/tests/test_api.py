@@ -24,6 +24,30 @@ def test_system_status() -> None:
     assert data["status"] == "ok"
     assert "llm" in data
     assert "provider" in data["llm"]
+    assert "state" in data["llm"]
+
+
+def test_system_llm_configuration_roundtrip() -> None:
+    current = client.get("/system/llm", headers=HEADERS)
+    assert current.status_code == 200
+    payload = current.json()
+    assert payload["provider"]
+    assert payload["model"]
+
+    update_response = client.post(
+        "/system/llm",
+        headers=HEADERS,
+        json={
+            "provider": "ollama",
+            "model": payload["model"],
+            "enable_cloud_reasoner": True,
+        },
+    )
+    assert update_response.status_code == 200
+    updated = update_response.json()
+    assert updated["provider"] == "ollama"
+    assert updated["model"] == payload["model"]
+    assert "state" in updated["status"]
 
 
 def test_login_and_bearer_access() -> None:

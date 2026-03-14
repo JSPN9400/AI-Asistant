@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     redis_url: str = Field(default="redis://localhost:6379/0", alias="REDIS_URL")
     file_storage_path: str = Field(default=str(DEFAULT_FILE_STORAGE_PATH), alias="FILE_STORAGE_PATH")
     enable_cloud_reasoner: bool = Field(default=False, alias="ASSISTANT_ENABLE_CLOUD_REASONER")
-    llm_provider: str = Field(default="openai", alias="ASSISTANT_LLM_PROVIDER")
+    llm_provider: str = Field(default="ollama", alias="ASSISTANT_LLM_PROVIDER")
     openai_model: str = Field(default="gpt-4.1-mini", alias="OPENAI_MODEL")
     openai_api_key: str = Field(default="", alias="OPENAI_API_KEY")
     gemini_model: str = Field(default="gemini-2.0-flash", alias="GEMINI_MODEL")
