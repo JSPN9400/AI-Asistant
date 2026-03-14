@@ -1,4 +1,6 @@
-from sqlmodel import Session, SQLModel, select, create_engine
+from threading import Lock
+
+from sqlmodel import Session, SQLModel, create_engine, select
 
 from app.config import settings
 from app.core.security import hash_text
@@ -6,11 +8,22 @@ from app.db.models import Organization, User, UserCredential, Workspace, Workspa
 
 
 engine = create_engine(settings.database_url, echo=False)
+_init_lock = Lock()
+_db_initialized = False
 
 
 def init_db() -> None:
-    SQLModel.metadata.create_all(engine)
-    seed_demo_data()
+    global _db_initialized
+
+    if _db_initialized:
+        return
+
+    with _init_lock:
+        if _db_initialized:
+            return
+        SQLModel.metadata.create_all(engine)
+        seed_demo_data()
+        _db_initialized = True
 
 
 def get_session() -> Session:

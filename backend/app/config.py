@@ -8,6 +8,12 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_DATABASE_PATH = PROJECT_ROOT / "work_assistant.db"
+DEFAULT_FILE_STORAGE_PATH = PROJECT_ROOT / "storage"
+
+
+def _sqlite_url(path: Path) -> str:
+    return f"sqlite:///{path.resolve().as_posix()}"
 
 
 class Settings(BaseSettings):
@@ -15,11 +21,11 @@ class Settings(BaseSettings):
     environment: str = Field(default="development", alias="APP_ENV")
     api_key: str = Field(default="replace-in-prod", alias="ASSISTANT_API_KEY")
     jwt_secret: str = Field(default="replace-me", alias="JWT_SECRET")
-    database_url: str = Field(default="sqlite:///./work_assistant.db", alias="DATABASE_URL")
+    database_url: str = Field(default=_sqlite_url(DEFAULT_DATABASE_PATH), alias="DATABASE_URL")
     redis_url: str = Field(default="redis://localhost:6379/0", alias="REDIS_URL")
-    file_storage_path: str = Field(default="./storage", alias="FILE_STORAGE_PATH")
+    file_storage_path: str = Field(default=str(DEFAULT_FILE_STORAGE_PATH), alias="FILE_STORAGE_PATH")
     enable_cloud_reasoner: bool = Field(default=False, alias="ASSISTANT_ENABLE_CLOUD_REASONER")
-    llm_provider: str = Field(default="gemini", alias="ASSISTANT_LLM_PROVIDER")
+    llm_provider: str = Field(default="openai", alias="ASSISTANT_LLM_PROVIDER")
     openai_model: str = Field(default="gpt-4.1-mini", alias="OPENAI_MODEL")
     openai_api_key: str = Field(default="", alias="OPENAI_API_KEY")
     gemini_model: str = Field(default="gemini-2.0-flash", alias="GEMINI_MODEL")

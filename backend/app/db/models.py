@@ -1,42 +1,46 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from uuid import uuid4
 
 from sqlmodel import Field, SQLModel
 
 
+def utc_now() -> datetime:
+    return datetime.now(UTC)
+
+
 class Organization(SQLModel, table=True):
     id: str = Field(default_factory=lambda: uuid4().hex, primary_key=True)
     name: str
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
 
 
 class Workspace(SQLModel, table=True):
     id: str = Field(default_factory=lambda: uuid4().hex, primary_key=True)
     organization_id: str
     name: str
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
 
 
 class User(SQLModel, table=True):
     id: str = Field(default_factory=lambda: uuid4().hex, primary_key=True)
     email: str
     full_name: str
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
 
 
 class UserCredential(SQLModel, table=True):
     user_id: str = Field(primary_key=True)
     password_hash: str
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
 
 
 class WorkspaceMembership(SQLModel, table=True):
     user_id: str = Field(primary_key=True)
     workspace_id: str = Field(primary_key=True)
     role: str = "employee"
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
 
 
 class TaskRun(SQLModel, table=True):
@@ -47,7 +51,7 @@ class TaskRun(SQLModel, table=True):
     status: str
     input_text: str
     output_text: str = ""
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
 
 
 class UploadedFile(SQLModel, table=True):
@@ -57,4 +61,4 @@ class UploadedFile(SQLModel, table=True):
     filename: str
     storage_path: str
     content_type: str = "application/octet-stream"
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)

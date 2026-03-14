@@ -81,6 +81,14 @@ class SQLiteMemory:
         )
         self.conn.commit()
 
+    def list_command_history(self, limit: int = 20) -> List[Tuple[str, str, str]]:
+        rows = self.conn.execute(
+            "SELECT text, intent, created_at FROM command_history "
+            "ORDER BY created_at DESC LIMIT ?",
+            (limit,),
+        )
+        return list(rows)
+
     # --- Learned commands ---
 
     def get_learned_command(self, phrase: str) -> tuple[str, dict, str] | None:

@@ -43,6 +43,26 @@ def resource_path(*parts: str) -> Path:
     return app_root().joinpath(*parts)
 
 
+def env_file_candidates() -> list[Path]:
+    roots = [
+        app_root(),
+        bundled_root(),
+        app_root() / "backend",
+        bundled_root() / "backend",
+        data_dir(),
+    ]
+    seen: set[Path] = set()
+    env_files: list[Path] = []
+    for root in roots:
+        candidate = root / ".env"
+        resolved = candidate.resolve()
+        if resolved in seen:
+            continue
+        seen.add(resolved)
+        env_files.append(candidate)
+    return env_files
+
+
 def _is_writable_dir(path: Path) -> bool:
     probe = path / f".write-test-{uuid4().hex}.tmp"
     try:

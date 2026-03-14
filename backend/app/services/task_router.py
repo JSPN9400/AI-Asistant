@@ -28,7 +28,11 @@ class TaskRouter:
 
         structured_task = self.reasoner.reason(user_input)
         plugin = self.plugin_manager.get_plugin(structured_task.task)
-        result = plugin.execute(structured_task.parameters, context)
+        plugin_context = {
+            **context,
+            "original_user_input": user_input,
+        }
+        result = plugin.execute(structured_task.parameters, plugin_context)
         assistant_reply = self.response_composer.compose(
             user_input=user_input,
             structured_task=structured_task.model_dump(),

@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 
 from dotenv import load_dotenv
 
+from assistant.paths import env_file_candidates
 from assistant.router import execute_intent
 from brain.nlu import NLU
 from memory.sqlite_store import SQLiteMemory
@@ -38,7 +39,7 @@ class SikhaRuntime:
         enable_voice_input: bool | None = None,
         enable_voice_output: bool = True,
     ) -> None:
-        load_dotenv()
+        self._load_environment()
         self.memory = SQLiteMemory()
         self.nlu = NLU(memory=self.memory)
         self.stt = self._create_speech_to_text(enable_voice_input)
@@ -138,6 +139,11 @@ class SikhaRuntime:
             return self.nlu._get_llm()
         except Exception:
             return None
+
+    @staticmethod
+    def _load_environment() -> None:
+        for env_path in env_file_candidates():
+            load_dotenv(dotenv_path=env_path, override=False)
 
     @staticmethod
     def _voice_input_default() -> bool:

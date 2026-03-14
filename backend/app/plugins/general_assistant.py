@@ -27,6 +27,8 @@ class GeneralAssistantPlugin(BasePlugin):
     def execute(self, parameters: dict, context: PluginContext) -> dict:
         prompt = str(parameters.get("prompt", "")).strip()
         if not prompt:
+            prompt = str(context.get("original_user_input", "")).strip()
+        if not prompt:
             return {
                 "status": "error",
                 "message": "I need a question or request to answer.",

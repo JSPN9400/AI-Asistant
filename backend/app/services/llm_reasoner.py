@@ -37,6 +37,11 @@ class LLMReasoner:
         self.gateway = LLMGateway()
 
     def reason(self, user_input: str) -> StructuredTask:
+        heuristic_task = self._heuristic_reason(user_input)
+        if heuristic_task.task != "general_assistant":
+            return heuristic_task
+        if self._looks_like_general_question(user_input):
+            return heuristic_task
         if self.gateway.is_configured():
             try:
                 payload = self.gateway.complete_json(SYSTEM_PROMPT, user_input)
@@ -44,7 +49,7 @@ class LLMReasoner:
             except Exception:
                 pass
 
-        return self._heuristic_reason(user_input)
+        return heuristic_task
 
     def _heuristic_reason(self, user_input: str) -> StructuredTask:
         text = user_input.lower().strip()
@@ -296,6 +301,31 @@ class LLMReasoner:
             parameters={
                 "prompt": user_input,
             },
+        )
+
+    @staticmethod
+    def _looks_like_general_question(user_input: str) -> bool:
+        text = user_input.lower().strip()
+        if not text:
+            return False
+        if text.endswith("?"):
+            return True
+        return text.startswith(
+            (
+                "who ",
+                "what ",
+                "when ",
+                "where ",
+                "why ",
+                "how ",
+                "which ",
+                "can you ",
+                "tell me ",
+                "do you know ",
+                "is ",
+                "are ",
+                "explain ",
+            )
         )
 
     @staticmethod

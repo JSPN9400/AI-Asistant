@@ -19,6 +19,10 @@ class ResponseComposer:
         self.gateway = LLMGateway()
 
     def compose(self, user_input: str, structured_task: dict, result: dict) -> str:
+        direct_reply = self._direct_reply(result)
+        if direct_reply:
+            return direct_reply
+
         if self.gateway.is_configured():
             try:
                 prompt = (
@@ -34,6 +38,14 @@ class ResponseComposer:
                 pass
 
         return self._fallback_reply(structured_task.get("task", ""), result)
+
+    @staticmethod
+    def _direct_reply(result: dict) -> str:
+        for key in ("assistant_reply", "message"):
+            value = result.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+        return ""
 
     @staticmethod
     def _fallback_reply(task: str, result: dict) -> str:

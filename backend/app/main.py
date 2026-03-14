@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -15,10 +16,18 @@ from app.db.session import init_db
 
 configure_logging()
 
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    init_db()
+    yield
+
+
 app = FastAPI(
     title="Sikha Work Assistant API",
     version="0.1.0",
     description="Cloud-first AI productivity backend for low-spec workplace devices.",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -34,10 +43,6 @@ app.include_router(system_router, prefix="/system", tags=["system"])
 app.include_router(tasks_router, prefix="/tasks", tags=["tasks"])
 app.include_router(plugins_router, prefix="/plugins", tags=["plugins"])
 app.include_router(files_router, prefix="/files", tags=["files"])
-
-@app.on_event("startup")
-def startup() -> None:
-    init_db()
 
 
 @app.get("/health", include_in_schema=False)

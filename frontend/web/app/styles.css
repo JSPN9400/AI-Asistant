@@ -1,17 +1,17 @@
 :root {
-  --bg: #ece6dc;
-  --surface: rgba(251, 247, 239, 0.92);
-  --surface-strong: #fffaf0;
-  --surface-accent: #ead7bb;
-  --text: #1f1d19;
-  --muted: #696257;
-  --line: rgba(104, 89, 60, 0.18);
-  --accent: #195d52;
-  --accent-strong: #0f3f38;
-  --accent-soft: #d7ece6;
-  --warning: #9b6b21;
-  --danger: #a84034;
-  --shadow: 0 22px 50px rgba(67, 49, 22, 0.12);
+  --bg: #f4f1ea;
+  --surface: #fbfaf6;
+  --surface-strong: #ffffff;
+  --surface-accent: #ece6db;
+  --text: #1e1c18;
+  --muted: #6c665c;
+  --line: rgba(92, 82, 63, 0.14);
+  --accent: #1b5d53;
+  --accent-strong: #123f38;
+  --accent-soft: #dfeee9;
+  --warning: #8b6122;
+  --danger: #a23e32;
+  --shadow: 0 12px 30px rgba(40, 28, 12, 0.07);
 }
 
 * {
@@ -22,23 +22,19 @@ body {
   margin: 0;
   color: var(--text);
   font-family: "Segoe UI", sans-serif;
-  background:
-    radial-gradient(circle at top left, rgba(25, 93, 82, 0.14), transparent 26%),
-    radial-gradient(circle at bottom right, rgba(234, 215, 187, 0.9), transparent 24%),
-    linear-gradient(180deg, #f5f1e7, var(--bg));
+  background: linear-gradient(180deg, #f7f4ee, var(--bg));
 }
 
 .shell {
   display: grid;
-  grid-template-columns: 340px 1fr;
+  grid-template-columns: 280px 1fr;
   min-height: 100vh;
 }
 
 .sidebar {
-  padding: 22px 18px;
-  background: rgba(255, 250, 240, 0.74);
+  padding: 18px 16px;
+  background: #f8f6f0;
   border-right: 1px solid var(--line);
-  backdrop-filter: blur(14px);
 }
 
 .brand,
@@ -56,7 +52,7 @@ body {
 }
 
 .brand {
-  padding: 20px;
+  padding: 18px;
 }
 
 .brand h1,
@@ -84,12 +80,15 @@ body {
 }
 
 .panel {
-  margin-top: 16px;
-  padding: 16px;
+  margin-top: 14px;
+  padding: 14px;
 }
 
 .content {
-  padding: 24px;
+  padding: 24px 28px 40px;
+  max-width: 1100px;
+  width: 100%;
+  margin: 0 auto;
 }
 
 .hero {
@@ -97,10 +96,8 @@ body {
   align-items: stretch;
   justify-content: space-between;
   gap: 18px;
-  padding: 24px;
-  background:
-    linear-gradient(135deg, rgba(25, 93, 82, 0.12), rgba(234, 215, 187, 0.7)),
-    var(--surface-strong);
+  padding: 22px;
+  background: var(--surface-strong);
 }
 
 .hero p {
@@ -111,10 +108,16 @@ body {
   margin-top: 14px;
   padding: 12px 14px;
   border-radius: 16px;
-  background: rgba(255, 251, 244, 0.82);
+  background: #f7f5ef;
   border: 1px solid var(--line);
   color: var(--accent-strong);
   font-weight: 600;
+}
+
+.assistant-model-status {
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 14px;
 }
 
 .hero-metrics {
@@ -125,9 +128,9 @@ body {
 }
 
 .metric {
-  padding: 16px;
+  padding: 14px;
   border-radius: 18px;
-  background: rgba(255, 251, 244, 0.82);
+  background: #f8f6f1;
   border: 1px solid var(--line);
 }
 
@@ -147,6 +150,90 @@ body {
   grid-template-columns: minmax(0, 1.3fr) minmax(320px, 0.9fr);
   gap: 18px;
   margin-top: 18px;
+}
+
+.mode-bar {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.mode-chip {
+  width: 100%;
+  padding: 16px 18px;
+  border-radius: 18px;
+  background: var(--surface-strong);
+  border: 1px solid var(--line);
+  color: var(--accent-strong);
+  font-weight: 700;
+  text-align: left;
+  box-shadow: none;
+}
+
+.mode-chip.active {
+  background: linear-gradient(135deg, #1b675b, #123f38);
+  color: #fff;
+}
+
+.mode-chip-title,
+.mode-chip-copy {
+  display: block;
+}
+
+.mode-chip-title {
+  font-size: 18px;
+}
+
+.mode-chip-copy {
+  margin-top: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  opacity: 0.84;
+}
+
+.mode-stage {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(300px, 0.85fr);
+  gap: 18px;
+  margin-top: 18px;
+}
+
+.mode-card,
+.mode-focus-card {
+  margin-top: 0;
+}
+
+.mode-quick-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.mode-focus-list,
+.mode-signal-list,
+.mini-stack {
+  display: grid;
+  gap: 10px;
+}
+
+.focus-item,
+.signal-item,
+.mini-panel {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: #fffdf8;
+  padding: 14px;
+}
+
+.signal-item strong {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--accent-strong);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
 }
 
 .card {
@@ -241,7 +328,7 @@ button {
 input,
 textarea {
   border: 1px solid var(--line);
-  background: #fffdf8;
+  background: #fcfbf8;
   padding: 12px 14px;
   color: var(--text);
 }
@@ -269,11 +356,11 @@ button {
 button:hover {
   background: var(--accent-strong);
   transform: translateY(-1px);
-  box-shadow: 0 14px 24px rgba(15, 63, 56, 0.16);
+  box-shadow: 0 10px 18px rgba(15, 63, 56, 0.12);
 }
 
 button.ghost {
-  background: transparent;
+  background: #f6f4ee;
   color: var(--accent-strong);
   border: 1px solid var(--line);
   box-shadow: none;
@@ -295,13 +382,28 @@ button.ghost {
 
 .quick-btn {
   text-align: left;
-  background: linear-gradient(135deg, #1c6a5d, #154c44);
+  background: #f8fbf9;
+  color: var(--accent-strong);
+  border: 1px solid var(--line);
 }
 
 .actions {
   display: flex;
   gap: 10px;
   margin-top: 14px;
+}
+
+.actions .voice-primary {
+  background: linear-gradient(135deg, #1c6a5d, #154c44);
+  color: #fff;
+  border: none;
+  box-shadow: 0 14px 24px rgba(15, 63, 56, 0.16);
+}
+
+.side-stack-card {
+  display: grid;
+  gap: 16px;
+  align-content: start;
 }
 
 .result,
@@ -311,12 +413,12 @@ button.ghost {
 .structured-card {
   border: 1px solid var(--line);
   border-radius: 16px;
-  background: #fffdf8;
+  background: #fcfbf8;
 }
 
 .result {
   padding: 14px;
-  min-height: 220px;
+  min-height: 260px;
   white-space: pre-wrap;
   overflow-x: auto;
 }
@@ -363,11 +465,57 @@ button.ghost {
   font-weight: 700;
 }
 
+.quick-prompt {
+  text-align: left;
+  background: #f3f8f6;
+  color: var(--accent-strong);
+  border: 1px solid var(--line);
+}
+
+.composer-card {
+  border-radius: 24px;
+}
+
+.task-card textarea {
+  min-height: 170px;
+  border-radius: 20px;
+}
+
+.result-card {
+  border-radius: 24px;
+}
+
+.settings-panel summary {
+  cursor: pointer;
+  font-weight: 700;
+  list-style: none;
+}
+
+.settings-panel summary::-webkit-details-marker {
+  display: none;
+}
+
+.settings-panel[open] summary {
+  margin-bottom: 12px;
+}
+
+.plugin-item,
+.history-item {
+  border-radius: 14px;
+}
+
+#resultSummary {
+  font-size: 16px;
+  line-height: 1.5;
+}
+
 @media (max-width: 1100px) {
   .shell {
     grid-template-columns: 1fr;
   }
 
+  .mode-bar,
+  .mode-stage,
   .hero,
   .workspace-grid {
     grid-template-columns: 1fr;
@@ -376,6 +524,10 @@ button.ghost {
 
   .hero-metrics {
     min-width: 0;
+  }
+
+  .mode-quick-grid {
+    grid-template-columns: 1fr;
   }
 }
 

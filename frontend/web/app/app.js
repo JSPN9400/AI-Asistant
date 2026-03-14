@@ -2,6 +2,115 @@ const $ = (id) => document.getElementById(id);
 let bearerToken = "";
 let recognition = null;
 let listening = false;
+let currentMode = "chat";
+
+const MODES = {
+  chat: {
+    headline: "Chat naturally with Sikha for general questions and quick help",
+    description: "Use Chat Mode for open-ended conversation, knowledge questions, and normal assistant interactions.",
+    title: "Chat Mode",
+    badge: "General assistant",
+    hint: "Ask normal questions, clarify ideas, or talk naturally with the assistant.",
+    focusTitle: "Chat Focus",
+    focusBadge: "Conversation",
+    composerTitle: "Chat Composer",
+    composerLabel: "Ask Sikha",
+    composerBadge: "Conversational AI",
+    composerButton: "Send",
+    placeholder: "Who is the prime minister of India?",
+    uploadVisible: false,
+    uploadTitle: "Reference Files",
+    attachmentsVisible: false,
+    resultTitle: "Assistant Reply",
+    historyTitle: "Chat History",
+    signalTitle: "Chat signals",
+    focusItems: [
+      "Handles natural questions, ideas, clarifications, and follow-up discussion.",
+      "Best when the user expects a direct answer, not a formal office document.",
+      "Uses the LLM as a general assistant before forcing a workflow plugin.",
+    ],
+    signals: [
+      "Preferred input: plain-language question",
+      "Typical output: answer, explanation, recommendation",
+      "Voice use: optional",
+    ],
+    prompts: [
+      "Who is the prime minister of India?",
+      "What can you do?",
+      "Explain FMCG distribution in simple words.",
+    ],
+  },
+  live: {
+    headline: "Use live mode for fast voice prompts and real-time actions",
+    description: "Use Live Mode when you want quick voice-first assistance, instant web actions, and short command-style prompts.",
+    title: "Live Mode",
+    badge: "Voice and action flow",
+    hint: "Best for spoken commands, quick web opens, and live responses.",
+    focusTitle: "Live Focus",
+    focusBadge: "Realtime",
+    composerTitle: "Live Prompt",
+    composerLabel: "Say or type a live command",
+    composerBadge: "Real-time assistant",
+    composerButton: "Run Live",
+    placeholder: "open youtube",
+    uploadVisible: false,
+    uploadTitle: "Reference Files",
+    attachmentsVisible: false,
+    resultTitle: "Live Result",
+    historyTitle: "Recent Live Actions",
+    signalTitle: "Live signals",
+    focusItems: [
+      "Optimized for short spoken commands and instant action-style prompts.",
+      "Keeps the voice button primary so the app feels like a live assistant.",
+      "Useful for search, open, play, and quick hands-free requests.",
+    ],
+    signals: [
+      "Preferred input: voice or short command",
+      "Typical output: quick reply, link, or action suggestion",
+      "Voice use: primary",
+    ],
+    prompts: [
+      "open youtube",
+      "google pe python tutorial search karo",
+      "play on youtube lofi music",
+    ],
+  },
+  office: {
+    headline: "Office mode focuses on reports, summaries, drafts, and work files",
+    description: "Use Office Mode for productivity tasks across sales, operations, admin, and support workflows.",
+    title: "Office Mode",
+    badge: "Work automation",
+    hint: "Best for reports, meeting notes, email drafting, and spreadsheet analysis.",
+    focusTitle: "Office Focus",
+    focusBadge: "Productivity",
+    composerTitle: "Office Task",
+    composerLabel: "Office request",
+    composerBadge: "Productivity mode",
+    composerButton: "Run Task",
+    placeholder: "Create a weekly sales report from this data.",
+    uploadVisible: true,
+    uploadTitle: "Workspace Files",
+    attachmentsVisible: true,
+    resultTitle: "Work Output",
+    historyTitle: "Task History",
+    signalTitle: "Office signals",
+    focusItems: [
+      "Routes into report, summary, drafting, analysis, and workplace plugins.",
+      "Keeps file upload and attachment flow visible for data-backed tasks.",
+      "Best for workers in sales, FMCG, operations, and office support roles.",
+    ],
+    signals: [
+      "Preferred input: structured work request",
+      "Typical output: report, summary, draft, action items",
+      "Voice use: optional",
+    ],
+    prompts: [
+      "Create a weekly sales report from this data.",
+      "Summarize these meeting notes and extract action items.",
+      "Draft a client response for delayed dispatch.",
+    ],
+  },
+};
 
 function getConfig() {
   const enteredApiBaseUrl = $("apiBaseUrl").value.trim().replace(/\/$/, "");
@@ -39,6 +148,75 @@ function setBadge(id, variant, text) {
 
 function updateGreeting(text) {
   $("assistantGreeting").textContent = text;
+}
+
+function updateModelStatus(text) {
+  $("modelStatus").textContent = text;
+}
+
+function renderModePrompts(mode) {
+  $("modeQuickGrid").innerHTML = MODES[mode].prompts
+    .map(
+      (prompt) => `
+        <button class="quick-prompt" data-mode-prompt="${prompt.replace(/"/g, "&quot;")}">${prompt}</button>
+      `
+    )
+    .join("");
+
+  document.querySelectorAll("[data-mode-prompt]").forEach((button) => {
+    button.addEventListener("click", () => runTask(button.dataset.modePrompt));
+  });
+}
+
+function renderModeDetails(mode) {
+  const config = MODES[mode];
+  $("modeFocusTitle").textContent = config.focusTitle;
+  $("modeFocusBadge").textContent = config.focusBadge;
+  $("modeFocusList").innerHTML = config.focusItems
+    .map((item) => `<div class="focus-item">${item}</div>`)
+    .join("");
+
+  $("modeSignalList").innerHTML = config.signals
+    .map(
+      (item) => `
+        <div class="signal-item">
+          <strong>${config.signalTitle}</strong>
+          <span>${item}</span>
+        </div>
+      `
+    )
+    .join("");
+}
+
+function applyMode(mode) {
+  currentMode = mode;
+  const config = MODES[mode];
+
+  $("modeHeadline").textContent = config.headline;
+  $("modeDescription").textContent = config.description;
+  $("modeTitle").textContent = config.title;
+  $("modeBadge").textContent = config.badge;
+  $("modeHint").textContent = config.hint;
+  $("composerTitle").textContent = config.composerTitle;
+  $("composerLabel").childNodes[0].textContent = config.composerLabel;
+  $("composerBadge").textContent = config.composerBadge;
+  $("runTaskBtn").textContent = config.composerButton;
+  $("taskInput").placeholder = config.placeholder;
+  $("uploadCard").style.display = config.uploadVisible ? "block" : "none";
+  $("attachmentsLabel").style.display = config.attachmentsVisible ? "block" : "none";
+  $("uploadTitle").textContent = config.uploadTitle;
+  $("resultTitle").textContent = config.resultTitle;
+  $("historyTitle").textContent = config.historyTitle;
+  $("voiceBtn").classList.toggle("voice-primary", mode === "live");
+  $("runTaskBtn").classList.toggle("ghost", mode === "live");
+
+  document.querySelectorAll(".mode-chip").forEach((chip) => {
+    chip.classList.toggle("active", chip.dataset.mode === mode);
+  });
+
+  renderModePrompts(mode);
+  renderModeDetails(mode);
+  updateGreeting(`Switched to ${config.title}. ${config.hint}`);
 }
 
 function parseAttachments() {
@@ -189,14 +367,17 @@ async function refreshStatus() {
     const llm = system.llm || {};
     if (llm.available === "true") {
       setBadge("llmBadge", "badge-success", `${llm.provider}:${llm.model}`);
+      updateModelStatus(`Connected to ${llm.provider} / ${llm.model}.`);
     } else {
       setBadge("llmBadge", "badge-warning", `${llm.provider}:fallback`);
+      updateModelStatus(llm.message || `Model unavailable for ${llm.provider}.`);
     }
 
     setText("statusText", llm.message || `Connected to ${apiBaseUrl}`);
   } catch (error) {
     setBadge("apiBadge", "badge-danger", "OFFLINE");
     setBadge("llmBadge", "badge-danger", "UNKNOWN");
+    updateModelStatus("Model status unavailable because the server is offline.");
     setText("statusText", `Server unavailable: ${error.message}`);
   }
 }
@@ -260,7 +441,10 @@ async function runTask(promptText) {
         user_input: userInput,
         workspace_id: config.workspaceId,
         attachments: parseAttachments(),
-        context: {},
+        context: {
+          ui_mode: currentMode,
+          mode_title: MODES[currentMode].title,
+        },
       }),
     });
 
@@ -446,6 +630,10 @@ document.querySelectorAll("[data-prompt]").forEach((button) => {
   button.addEventListener("click", () => runTask(button.dataset.prompt));
 });
 
+document.querySelectorAll(".mode-chip").forEach((button) => {
+  button.addEventListener("click", () => applyMode(button.dataset.mode));
+});
+
 $("refreshStatusBtn").addEventListener("click", refreshStatus);
 $("loginBtn").addEventListener("click", login);
 $("runTaskBtn").addEventListener("click", () => runTask());
@@ -456,6 +644,7 @@ $("uploadBtn").addEventListener("click", uploadFile);
 
 updateMetrics();
 setupVoiceRecognition();
+applyMode(currentMode);
 updateGreeting("Hello. I am ready for typed or voice commands.");
 speakText("Hello. I am ready.");
 refreshStatus();

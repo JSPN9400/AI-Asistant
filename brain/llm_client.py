@@ -6,15 +6,30 @@ from urllib import error, request
 
 from dotenv import load_dotenv
 
+from assistant.paths import env_file_candidates
+
 
 class LLMClient:
     def __init__(self, model: str | None = None, api_key_env: str = "GEMINI_API_KEY"):
-        load_dotenv()
+        _load_environment()
         self.provider = self._resolve_provider()
         self.api_key_env = api_key_env
         if self.provider == "ollama":
             self.model_name = model or os.getenv("OLLAMA_MODEL", "phi3")
             self.ollama_host = os.getenv("OLLAMA_HOST", "http://127.0.0.1:11434").rstrip("/")
+            return
+        if self.provider == "openai":
+            self.model_name = model or os.getenv("OPENAI_MODEL", "gpt-4.1-mini")
+            api_key = os.getenv("OPENAI_API_KEY")
+            if not api_key:
+                raise RuntimeError("Missing API key in environment variable OPENAI_API_KEY")
+
+            try:
+                from openai import OpenAI
+            except Exception as exc:
+                raise RuntimeError("openai is not available in this environment.") from exc
+
+            self._openai = OpenAI(api_key=api_key)
             return
 
         self.model_name = model or os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
@@ -42,6 +57,20 @@ class LLMClient:
             )
             return self._ollama_generate(prompt, response_format="json")
 
+        if self.provider == "openai":
+            response = self._openai.chat.completions.create(
+                model=self.model_name,
+                response_format={"type": "json_object"},
+                messages=[
+                    {"role": "system", "content": system_prompt.strip()},
+                    {"role": "user", "content": user_prompt.strip()},
+                ],
+            )
+            content = response.choices[0].message.content
+            if not content:
+                raise RuntimeError("OpenAI returned an empty JSON response.")
+            return content
+
         response = self.client.models.generate_content(
             model=self.model_name,
             contents=(
@@ -60,6 +89,19 @@ class LLMClient:
         if self.provider == "ollama":
             return self._ollama_generate(user_prompt, system_prompt=system_prompt)
 
+        if self.provider == "openai":
+            response = self._openai.chat.completions.create(
+                model=self.model_name,
+                messages=[
+                    {"role": "system", "content": system_prompt.strip()},
+                    {"role": "user", "content": user_prompt.strip()},
+                ],
+            )
+            content = response.choices[0].message.content
+            if not content:
+                raise RuntimeError("OpenAI returned an empty text response.")
+            return content.strip()
+
         response = self.client.models.generate_content(
             model=self.model_name,
             contents=f"{system_prompt.strip()}\n\nUser:\n{user_prompt.strip()}",
@@ -69,8 +111,10 @@ class LLMClient:
     @staticmethod
     def _resolve_provider() -> str:
         provider = os.getenv("ASSISTANT_LLM_PROVIDER", "").strip().lower()
-        if provider in {"gemini", "ollama"}:
+        if provider in {"gemini", "ollama", "openai"}:
             return provider
+        if os.getenv("OPENAI_API_KEY"):
+            return "openai"
         if os.getenv("OLLAMA_MODEL"):
             return "ollama"
         return "gemini"
@@ -114,8 +158,17 @@ class LLMClient:
 
 
 def get_llm_status() -> dict[str, str]:
-    load_dotenv()
+    _load_environment()
     provider = LLMClient._resolve_provider()
+
+    if provider == "openai":
+        api_key = os.getenv("OPENAI_API_KEY", "")
+        return {
+            "provider": "openai",
+            "model": os.getenv("OPENAI_MODEL", "gpt-4.1-mini"),
+            "available": str(bool(api_key)).lower(),
+            "message": "OpenAI API key found." if api_key else "Set OPENAI_API_KEY to enable OpenAI.",
+        }
 
     if provider == "ollama":
         model = os.getenv("OLLAMA_MODEL", "phi3")
@@ -146,3 +199,8 @@ def get_llm_status() -> dict[str, str]:
         "available": str(available).lower(),
         "message": "Gemini API key found." if available else "Set GEMINI_API_KEY to enable Gemini.",
     }
+
+
+def _load_environment() -> None:
+    for env_path in env_file_candidates():
+        load_dotenv(dotenv_path=env_path, override=False)

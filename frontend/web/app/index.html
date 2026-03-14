@@ -11,13 +11,25 @@
     <aside class="sidebar">
       <div class="brand">
         <span class="brand-kicker">Low-Spec Workplace AI</span>
-        <h1>Sikha Control</h1>
-        <p>Cloud reasoning, lightweight clients, and task-focused automation for daily work.</p>
+        <h1>Sikha</h1>
+        <p>One assistant with three working modes for chat, live help, and office execution.</p>
       </div>
 
       <section class="panel">
         <div class="section-head">
-          <h2>Connection</h2>
+          <h2>Mode Shortcuts</h2>
+        </div>
+        <div class="quick-grid">
+          <button data-prompt="Who is the prime minister of India?" class="quick-btn">Ask a question</button>
+          <button data-prompt="open youtube" class="quick-btn">Run live command</button>
+          <button data-prompt="Summarize these meeting notes and extract action items." class="quick-btn">Summarize file</button>
+        </div>
+      </section>
+
+      <details class="panel settings-panel">
+        <summary>Connection and Sign In</summary>
+        <div class="section-head">
+          <h2>Session</h2>
           <button id="refreshStatusBtn" class="ghost compact-btn">Refresh</button>
         </div>
         <label>API Base URL
@@ -62,37 +74,26 @@
           </div>
         </div>
         <p id="statusText" class="muted">Waiting for server...</p>
-      </section>
+      </details>
 
-      <section class="panel">
-        <div class="section-head">
-          <h2>Quick Actions</h2>
-        </div>
-        <div class="quick-grid">
-          <button data-prompt="Create a weekly sales report from this data." class="quick-btn">Sales Report</button>
-          <button data-prompt="Summarize these meeting notes and extract action items." class="quick-btn">Meeting Summary</button>
-          <button data-prompt="Draft a client response for delayed dispatch." class="quick-btn">Client Email</button>
-          <button data-prompt="Analyze this spreadsheet for trends." class="quick-btn">Data Analysis</button>
-          <button data-prompt="Search market update for FMCG distribution trends." class="quick-btn">Web Search</button>
-        </div>
-      </section>
-
-      <section class="panel">
+      <details class="panel settings-panel">
+        <summary>Plugins</summary>
         <div class="section-head">
           <h2>Plugins</h2>
           <button id="loadPluginsBtn" class="ghost compact-btn">Reload</button>
         </div>
         <div id="pluginList" class="stack muted">No plugin data loaded.</div>
-      </section>
+      </details>
     </aside>
 
     <main class="content">
       <section class="hero">
         <div>
           <span class="eyebrow">Operator Workspace</span>
-          <h2>Route natural-language work requests into structured actions</h2>
-          <p>Workers can submit tasks, attach files, and get report drafts, summaries, analysis, and search outputs from one low-overhead console.</p>
+          <h2 id="modeHeadline">Route natural-language work requests into structured actions</h2>
+          <p id="modeDescription">Workers can submit tasks, attach files, and get report drafts, summaries, analysis, and search outputs from one low-overhead console.</p>
           <div id="assistantGreeting" class="assistant-greeting">Assistant is ready.</div>
+          <div id="modelStatus" class="assistant-model-status">Model status unknown.</div>
         </div>
         <div class="hero-metrics">
           <div class="metric">
@@ -110,29 +111,63 @@
         </div>
       </section>
 
-      <section class="workspace-grid">
-        <div class="card task-card">
+      <section class="mode-bar">
+        <button class="mode-chip active" data-mode="chat">
+          <span class="mode-chip-title">Chat</span>
+          <span class="mode-chip-copy">General Q&amp;A and conversation</span>
+        </button>
+        <button class="mode-chip" data-mode="live">
+          <span class="mode-chip-title">Live</span>
+          <span class="mode-chip-copy">Voice-first commands and quick actions</span>
+        </button>
+        <button class="mode-chip" data-mode="office">
+          <span class="mode-chip-title">Office</span>
+          <span class="mode-chip-copy">Reports, files, summaries, and drafts</span>
+        </button>
+      </section>
+
+      <section class="mode-stage">
+        <section class="card mode-card">
           <div class="card-head">
-            <h3>Task Runner</h3>
-            <span class="pill">Structured execution</span>
+            <h3 id="modeTitle">Chat Mode</h3>
+            <span id="modeBadge" class="pill">General assistant</span>
           </div>
-          <label>Task request
+          <p id="modeHint" class="muted">Use this mode for normal Q&amp;A, natural conversation, and quick asks.</p>
+          <div id="modeQuickGrid" class="mode-quick-grid"></div>
+        </section>
+
+        <section class="card mode-focus-card">
+          <div class="card-head">
+            <h3 id="modeFocusTitle">Chat Focus</h3>
+            <span id="modeFocusBadge" class="pill alt">Current mode</span>
+          </div>
+          <div id="modeFocusList" class="mode-focus-list"></div>
+        </section>
+      </section>
+
+      <section class="workspace-grid">
+        <div class="card task-card composer-card">
+          <div class="card-head">
+            <h3 id="composerTitle">Task Runner</h3>
+            <span id="composerBadge" class="pill">Structured execution</span>
+          </div>
+          <label id="composerLabel">Task request
             <textarea id="taskInput" rows="6" placeholder="Create a weekly sales report from this data."></textarea>
           </label>
-          <label>Attachment IDs
+          <label id="attachmentsLabel">Attachment IDs
             <input id="attachmentsInput" placeholder="file-1,file-2">
           </label>
           <div class="actions">
-            <button id="runTaskBtn">Run Task</button>
+            <button id="runTaskBtn">Send</button>
             <button id="voiceBtn" class="ghost">Start Voice</button>
             <button id="loadHistoryBtn" class="ghost">History</button>
           </div>
           <div id="actionPanel" class="stack"></div>
         </div>
 
-        <div class="card upload-card">
+        <div class="card upload-card" id="uploadCard">
           <div class="card-head">
-            <h3>Workspace Files</h3>
+            <h3 id="uploadTitle">Workspace Files</h3>
             <span class="pill alt">Source material</span>
           </div>
           <label>Upload a file
@@ -144,9 +179,9 @@
       </section>
 
       <section class="workspace-grid">
-        <div class="card">
+        <div class="card result-card">
           <div class="card-head">
-            <h3>Task Result</h3>
+            <h3 id="resultTitle">Assistant Result</h3>
             <span id="taskBadge" class="badge badge-muted">Idle</span>
           </div>
           <div id="resultSummary" class="result-summary muted">Run a task to see routed intent and output.</div>
@@ -154,9 +189,17 @@
           <pre id="taskResult" class="result">No task run yet.</pre>
         </div>
 
-        <div class="card">
+        <div class="card side-stack-card">
+          <div class="mini-stack">
+            <div class="mini-panel">
+              <div class="card-head">
+                <h3>Mode Signals</h3>
+              </div>
+              <div id="modeSignalList" class="mode-signal-list"></div>
+            </div>
+          </div>
           <div class="card-head">
-            <h3>Recent History</h3>
+            <h3 id="historyTitle">Recent History</h3>
           </div>
           <div id="historyList" class="history-list muted">No history loaded.</div>
         </div>

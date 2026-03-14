@@ -22,7 +22,7 @@ class FileService:
         workspace_dir.mkdir(parents=True, exist_ok=True)
 
         file_id = uuid4().hex
-        filename = upload.filename or f"{file_id}.bin"
+        filename = Path(upload.filename or f"{file_id}.bin").name or f"{file_id}.bin"
         target = workspace_dir / f"{file_id}-{filename}"
         content = await upload.read()
         target.write_bytes(content)
@@ -70,6 +70,39 @@ class FileService:
             "content_type": uploaded_file.content_type,
             "summary": f"{len(lines)} non-empty lines detected.",
             "sample": lines[:5],
+        }
+
+    def load_attachment_text(self, workspace_id: str, file_id: str, max_chars: int = 6000) -> dict[str, str] | None:
+        uploaded_file = self.repository.get_by_id(file_id, workspace_id)
+        if uploaded_file is None:
+            return None
+
+        path = Path(uploaded_file.storage_path)
+        if not path.exists():
+            return {
+                "filename": uploaded_file.filename,
+                "content_type": uploaded_file.content_type,
+                "text": "",
+            }
+
+        suffix = path.suffix.lower()
+        if suffix in {".csv", ".tsv"}:
+            preview = self.load_attachment_preview(workspace_id, file_id) or {}
+            lines = [",".join(preview.get("columns", []))]
+            for row in preview.get("sample", []):
+                lines.append(", ".join(str(item) for item in row))
+            text = "\n".join(line for line in lines if line.strip())
+        else:
+            text = path.read_text(encoding="utf-8", errors="ignore")
+
+        cleaned = text.strip()
+        if len(cleaned) > max_chars:
+            cleaned = cleaned[:max_chars].rstrip() + "\n...[truncated]"
+
+        return {
+            "filename": uploaded_file.filename,
+            "content_type": uploaded_file.content_type,
+            "text": cleaned,
         }
 
     def _summarize_delimited_file(self, path: Path, filename: str, delimiter: str) -> dict[str, object]:

@@ -10,6 +10,7 @@ class TextToSpeech:
     def __init__(self, rate: int = 180, voice_index: int | None = None):
         self._disabled_reason: str | None = None
         self._preferred_gender = self._get_preferred_gender()
+        self._preferred_voice_name = self._get_preferred_voice_name()
         self._speaker = self._build_pyttsx3_speaker(rate, voice_index)
         if self._speaker is not None:
             return
@@ -48,7 +49,7 @@ class TextToSpeech:
             if voice_index is not None and 0 <= voice_index < len(voices):
                 selected_voice = voices[voice_index]
             else:
-                selected_voice = self._pick_voice(voices, self._preferred_gender)
+                selected_voice = self._pick_voice(voices, self._preferred_gender, self._preferred_voice_name)
 
             if selected_voice is not None:
                 engine.setProperty("voice", selected_voice.id)
@@ -96,14 +97,23 @@ exit 1
 
         def speak_with_powershell(text: str) -> None:
             escaped_text = text.replace("'", "''")
+            preferred_name = self._preferred_voice_name.replace("'", "''")
             script = f"""
 try {{
     Add-Type -AssemblyName System.Speech -ErrorAction Stop
     $s = New-Object System.Speech.Synthesis.SpeechSynthesizer
     $s.Rate = {self._rate_to_sapi(rate)}
-    $preferred = $s.GetInstalledVoices() | Where-Object {{
-        $_.VoiceInfo.Name -match '{self._voice_match_pattern()}'
-    }} | Select-Object -First 1
+    $preferred = $null
+    if ('{preferred_name}') {{
+        $preferred = $s.GetInstalledVoices() | Where-Object {{
+            $_.VoiceInfo.Name -like '*{preferred_name}*'
+        }} | Select-Object -First 1
+    }}
+    if (-not $preferred) {{
+        $preferred = $s.GetInstalledVoices() | Where-Object {{
+            $_.VoiceInfo.Name -match '{self._voice_match_pattern()}'
+        }} | Select-Object -First 1
+    }}
     if ($preferred) {{ $s.SelectVoice($preferred.VoiceInfo.Name) }}
     $s.Speak('{escaped_text}')
     exit 0
@@ -133,7 +143,10 @@ $sapi.Rate = {self._rate_to_sapi(rate)}
         base_url = page_path.resolve().as_uri()
 
         def speak_with_browser(text: str) -> None:
-            url = f"{base_url}#text={quote(text)}&rate={rate}&gender={quote(self._preferred_gender)}"
+            url = (
+                f"{base_url}#text={quote(text)}&rate={rate}&gender={quote(self._preferred_gender)}"
+                f"&voice={quote(self._preferred_voice_name)}"
+            )
             subprocess.Popen(
                 [browser_path, "--new-window", f"--app={url}"],
                 stdout=subprocess.DEVNULL,
@@ -179,17 +192,21 @@ $sapi.Rate = {self._rate_to_sapi(rate)}
     const text = params.get("text") || "";
     const rate = Number(params.get("rate") || "180");
     const gender = (params.get("gender") || "female").toLowerCase();
+    const preferredVoice = (params.get("voice") || "").toLowerCase();
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.rate = Math.max(0.7, Math.min(1.4, rate / 180));
     utterance.lang = /[\u0900-\u097F]/.test(text) ? "hi-IN" : "en-US";
     const genderHints = {
-      female: ["female", "zira", "hazel", "heera", "susan", "eva", "aria"],
+      female: ["female", "zira", "hazel", "heera", "susan", "eva", "aria", "jenny", "neerja"],
       male: ["male", "david", "mark", "george", "guy", "ravi"]
     };
     const hints = genderHints[gender] || genderHints.female;
     const selectVoice = () => {
       const voices = speechSynthesis.getVoices();
-      const match = voices.find((voice) => {
+      const preferred = preferredVoice
+        ? voices.find((voice) => `${voice.name} ${voice.voiceURI}`.toLowerCase().includes(preferredVoice))
+        : null;
+      const match = preferred || voices.find((voice) => {
         const label = `${voice.name} ${voice.voiceURI}`.toLowerCase();
         return hints.some((hint) => label.includes(hint));
       });
@@ -228,9 +245,20 @@ $sapi.Rate = {self._rate_to_sapi(rate)}
         return "female"
 
     @staticmethod
-    def _pick_voice(voices, preferred_gender: str):
+    def _get_preferred_voice_name() -> str:
+        return os.getenv("ASSISTANT_VOICE_NAME", "Zira").strip()
+
+    @staticmethod
+    def _pick_voice(voices, preferred_gender: str, preferred_voice_name: str):
+        preferred_name = preferred_voice_name.lower()
+        if preferred_name:
+            for voice in voices:
+                voice_text = f"{getattr(voice, 'name', '')} {getattr(voice, 'id', '')}".lower()
+                if preferred_name in voice_text:
+                    return voice
+
         markers = {
-            "female": ("female", "zira", "hazel", "heera", "susan", "eva", "aria"),
+            "female": ("female", "zira", "hazel", "heera", "susan", "eva", "aria", "jenny", "neerja"),
             "male": ("male", "david", "mark", "george", "guy", "ravi"),
         }
         preferred_markers = markers.get(preferred_gender, markers["female"])
@@ -242,7 +270,7 @@ $sapi.Rate = {self._rate_to_sapi(rate)}
 
     def _voice_match_pattern(self) -> str:
         patterns = {
-            "female": "Zira|Hazel|Heera|Female|Susan|Eva|Aria",
+            "female": "Zira|Hazel|Heera|Female|Susan|Eva|Aria|Jenny|Neerja",
             "male": "David|Mark|George|Male|Guy|Ravi",
         }
         return patterns.get(self._preferred_gender, patterns["female"])
