@@ -14,6 +14,13 @@ APP_ALIASES = {
     "google chrome": "chrome",
     "notepad": "notepad",
     "notes": "notepad",
+    "excel": "excel",
+    "microsoft excel": "excel",
+    "ms excel": "excel",
+    "word": "word",
+    "microsoft word": "word",
+    "powerpoint": "powerpoint",
+    "microsoft powerpoint": "powerpoint",
     "calculator": "calc",
     "calc": "calc",
     "command prompt": "cmd",
@@ -25,6 +32,9 @@ APP_ALIASES = {
 APP_COMMANDS = {
     "chrome": [r"C:\Program Files\Google\Chrome\Application\chrome.exe"],
     "notepad": ["notepad.exe"],
+    "excel": ["excel.exe"],
+    "word": ["winword.exe"],
+    "powerpoint": ["powerpnt.exe"],
     "calc": ["calc.exe"],
     "cmd": ["cmd.exe"],
     "explorer": ["explorer.exe"],
@@ -41,21 +51,32 @@ KNOWN_SITES = {
 
 
 def open_application(app_name: str) -> str:
-    name = APP_ALIASES.get(app_name.lower().strip(), app_name.lower().strip())
+    raw_target = (app_name or "").strip().strip('"').strip("'")
+    name = APP_ALIASES.get(raw_target.lower(), raw_target.lower())
     if not name:
         return "I need an application name to open."
+
+    resolved_path = _resolve_local_target(raw_target)
+    if resolved_path is not None:
+        try:
+            os.startfile(str(resolved_path))
+            if resolved_path.is_dir():
+                return f"Opening folder {resolved_path}."
+            return f"Opening file {resolved_path.name}."
+        except OSError as exc:
+            return f"I found {resolved_path}, but could not open it: {exc}"
 
     command = APP_COMMANDS.get(name)
     if command is not None:
         try:
             subprocess.Popen(command)
-            return f"Opening {app_name}."
+            return f"Opening {raw_target}."
         except FileNotFoundError:
             pass
 
     try:
-        subprocess.Popen([app_name])
-        return f"Opening {app_name}."
+        subprocess.Popen([raw_target])
+        return f"Opening {raw_target}."
     except FileNotFoundError:
         pass
     except OSError:
@@ -63,12 +84,28 @@ def open_application(app_name: str) -> str:
 
     if hasattr(os, "startfile"):
         try:
-            os.startfile(app_name)
-            return f"Opening {app_name}."
+            os.startfile(raw_target)
+            return f"Opening {raw_target}."
         except OSError:
             pass
 
-    return f"I don't know how to open {app_name} yet."
+    return f"I don't know how to open {raw_target} yet."
+
+
+def _resolve_local_target(target: str) -> Path | None:
+    if not target:
+        return None
+
+    candidate = Path(target).expanduser()
+    if candidate.exists():
+        return candidate
+
+    if target.startswith("."):
+        relative_candidate = (Path.cwd() / candidate).resolve()
+        if relative_candidate.exists():
+            return relative_candidate
+
+    return None
 
 
 def close_application(app_name: str) -> str:

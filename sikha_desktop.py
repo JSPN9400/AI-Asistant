@@ -43,8 +43,17 @@ class LocalBackend:
         if str(bundle_root) not in os.sys.path:
             os.sys.path.insert(0, str(bundle_root))
 
-        from app.main import app as fastapi_app
+        try:
+            from app.main import app as fastapi_app
+        except Exception as exc:
+            import sys
 
+            self._append_log(
+                f"Failed to import backend app (sys.path={sys.path!r}): {exc!r}"
+            )
+            raise
+
+        self._append_log(f"Starting backend server on port {self.port}")
         config = uvicorn.Config(
             fastapi_app,
             host="127.0.0.1",
