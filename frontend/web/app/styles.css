@@ -62,6 +62,13 @@ textarea {
   z-index: 40;
 }
 
+.overlay.hidden {
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+}
+
 .overlay-content {
   width: min(360px, 90vw);
   padding: 24px 22px 20px;

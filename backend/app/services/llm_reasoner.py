@@ -84,7 +84,8 @@ class LLMReasoner:
                 "khol do ",
                 "khol ",
             )
-            if target.lower() in {
+            app_target = target.lower()
+            desktop_apps = {
                 "chrome",
                 "notepad",
                 "calculator",
@@ -98,7 +99,11 @@ class LLMReasoner:
                 "spotify",
                 "vs code",
                 "vscode",
-            }:
+                "excel",
+                "ms excel",
+                "microsoft excel",
+            }
+            if app_target in desktop_apps:
                 return StructuredTask(
                     task="desktop_control",
                     parameters={

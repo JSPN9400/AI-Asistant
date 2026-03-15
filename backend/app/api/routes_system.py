@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 
+from app.config import settings
 from app.core.auth import ApiPrincipal, require_api_principal
 from app.schemas.system import LLMConfigurationResponse, LLMSelectionRequest, LLMStatusResponse
 from app.services.llm_gateway import LLMGateway

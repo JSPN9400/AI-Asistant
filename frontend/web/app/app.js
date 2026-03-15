@@ -35,7 +35,7 @@ const STORAGE_KEYS = {
 
 function showOverlay(message = 'Connecting to Sikha...') {
   if (!loadingOverlay) return;
-  const textEl = loadingOverlay.querySelector('.loading-overlay__text');
+  const textEl = loadingOverlay.querySelector('.overlay-text');
   if (textEl) textEl.textContent = message;
   loadingOverlay.classList.remove('hidden');
 }
@@ -113,6 +113,7 @@ async function sendTaskRequest(userInput, attachments = []) {
   const payload = {
     user_input: userInput,
     workspace_id: localStorage.getItem(STORAGE_KEYS.workspaceId) || 'demo-workspace',
+    // For now we just send lightweight metadata for the selected file; backend can extend this later.
     attachments,
     context: {},
   };
@@ -142,6 +143,62 @@ async function updateLLMConfig(provider, model, enableCloud) {
       enable_auto_routing: $('llmAutoRouting') ? $('llmAutoRouting').checked : true,
     }),
   });
+}
+
+function updateVoiceButton() {
+  if (!voiceBtn) return;
+  if (listening) {
+    voiceBtn.textContent = '⏹';
+    voiceBtn.title = 'Stop listening';
+  } else {
+    voiceBtn.textContent = '🎙';
+    voiceBtn.title = 'Voice input';
+  }
+}
+
+function toggleVoice() {
+  if (!recognition) {
+    addMessage(
+      'assistant',
+      'Voice input is not available in this browser. Use text input or run the full desktop app for rich voice control.'
+    );
+    return;
+  }
+  if (listening) {
+    recognition.stop();
+    return;
+  }
+  listening = true;
+  updateVoiceButton();
+  try {
+    recognition.start();
+  } catch (err) {
+    listening = false;
+    updateVoiceButton();
+    console.error('Voice recognition error:', err);
+    addMessage('assistant', 'I could not start voice capture. Please try again or use text input.');
+  }
+}
+
+function handleFileAttach(event) {
+  const file = event.target.files && event.target.files[0];
+  if (!file) return;
+
+  // We cannot stream the raw file through this simple HTML client without extra backend endpoints,
+  // so we associate lightweight metadata and rely on the user prompt.
+  const attachmentMeta = {
+    name: file.name,
+    size: file.size,
+    type: file.type || 'application/octet-stream',
+  };
+
+  addMessage(
+    'assistant',
+    `Attached file: ${file.name} (${Math.round(file.size / 1024)} KB). Now ask me: "summarize this file" or "analyze this data".`
+  );
+
+  // Store on window so the next sendTaskRequest can include it.
+  window.__sikhaLastAttachment = attachmentMeta;
 }
 
 function setupDrawer() {
@@ -273,7 +330,9 @@ function sendMessage() {
 
   const typingIndicator = addTypingIndicator();
 
-  sendTaskRequest(message)
+  const attachments = window.__sikhaLastAttachment ? [window.__sikhaLastAttachment] : [];
+
+  sendTaskRequest(message, attachments)
     .then((response) => {
       removeTypingIndicator(typingIndicator);
       const result = response.result || {};
@@ -296,6 +355,8 @@ function sendMessage() {
 
       addMessage('assistant', assistantReply);
       loadHistory();
+      // Clear attachment after it has been used once
+      window.__sikhaLastAttachment = undefined;
     })
     .catch((error) => {
       removeTypingIndicator(typingIndicator);
