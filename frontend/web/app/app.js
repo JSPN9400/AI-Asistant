@@ -28,6 +28,26 @@ const internetDot = $('internetDot');
 const uploadStatus = $('uploadStatus');
 const voiceStatus = $('voiceStatus');
 
+// Keep the chat view scrolled to the bottom unless the user scrolls up explicitly.
+let autoScroll = true;
+const SCROLL_TOLERANCE = 24; // pixels
+
+function isScrolledToBottom() {
+  if (!messagesArea) return true;
+  return messagesArea.scrollHeight - messagesArea.scrollTop <= messagesArea.clientHeight + SCROLL_TOLERANCE;
+}
+
+function scrollMessagesToBottom() {
+  if (!messagesArea || !autoScroll) return;
+  messagesArea.scrollTop = messagesArea.scrollHeight;
+}
+
+if (messagesArea) {
+  messagesArea.addEventListener('scroll', () => {
+    autoScroll = isScrolledToBottom();
+  });
+}
+
 // Use same-origin API for both desktop (embedded backend) and local dev.
 // The backend requires X-API-Key; default matches backend settings.api_key.
 const API_BASE_URL = '';
@@ -217,7 +237,7 @@ function createUploadMessage(fileName) {
   `;
 
   messagesArea.appendChild(messageDiv);
-  messagesArea.scrollTop = messagesArea.scrollHeight;
+  scrollMessagesToBottom();
 
   return {
     messageDiv,
@@ -519,14 +539,14 @@ function streamAssistantMessage(content) {
 
   const textEl = messageDiv.querySelector('.streaming-text');
   messagesArea.appendChild(messageDiv);
-  messagesArea.scrollTop = messagesArea.scrollHeight;
+  scrollMessagesToBottom();
 
   let index = 0;
   const interval = setInterval(() => {
     if (!textEl) return;
     textEl.textContent += content.charAt(index);
     index += 1;
-    messagesArea.scrollTop = messagesArea.scrollHeight;
+    scrollMessagesToBottom();
     if (index >= content.length) {
       clearInterval(interval);
     }
@@ -544,7 +564,7 @@ function addMessage(type, content) {
   `;
 
   messagesArea.appendChild(messageDiv);
-  messagesArea.scrollTop = messagesArea.scrollHeight;
+  scrollMessagesToBottom();
 }
 
 function addTypingIndicator() {
@@ -565,7 +585,7 @@ function addTypingIndicator() {
   `;
 
   messagesArea.appendChild(indicatorDiv);
-  messagesArea.scrollTop = messagesArea.scrollHeight;
+  scrollMessagesToBottom();
   return indicatorDiv;
 }
 
