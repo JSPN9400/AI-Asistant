@@ -218,6 +218,20 @@
             </p>
           </div>
           <div class="shell-status">
+            <div class="status-indicators">
+              <span class="status-badge" title="AI engine status">
+                <span id="ollamaDot" class="status-dot offline"></span>
+                <span class="status-label">Ollama</span>
+              </span>
+              <span class="status-badge" title="Voice capture status">
+                <span id="voiceDot" class="status-dot warn"></span>
+                <span class="status-label">Voice</span>
+              </span>
+              <span class="status-badge" title="Internet connectivity">
+                <span id="internetDot" class="status-dot online"></span>
+                <span class="status-label">Internet</span>
+              </span>
+            </div>
             <span id="statusIndicator" class="pill pill-success">Ready</span>
           </div>
         </header>
@@ -273,6 +287,13 @@
                 </button>
               </div>
             </div>
+            <div id="uploadStatus" class="upload-status" hidden>
+              <div class="upload-text">Uploading…</div>
+              <div class="upload-progress">
+                <div class="upload-progress-bar" style="width: 0%"></div>
+              </div>
+            </div>
+            <div id="voiceStatus" class="voice-status" hidden>Listening…</div>
             <p class="composer-hint">
               Examples: “open youtube”, “ek note banao…”, “who is APJ Abdul Kalam?”
             </p>

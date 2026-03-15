@@ -1,206 +1,212 @@
+
 from __future__ import annotations
 
 import json
 import os
-from urllib import error, request
+from urllib import request, error
 
 from dotenv import load_dotenv
-
 from assistant.paths import env_file_candidates
 
 
-class LLMClient:
-    def __init__(self, model: str | None = None, api_key_env: str = "GEMINI_API_KEY"):
-        _load_environment()
-        self.provider = self._resolve_provider()
-        self.api_key_env = api_key_env
-        if self.provider == "ollama":
-            self.model_name = model or os.getenv("OLLAMA_MODEL", "phi3")
-            self.ollama_host = os.getenv("OLLAMA_HOST", "http://127.0.0.1:11434").rstrip("/")
-            return
-        if self.provider == "openai":
-            self.model_name = model or os.getenv("OPENAI_MODEL", "gpt-4.1-mini")
-            api_key = os.getenv("OPENAI_API_KEY")
-            if not api_key:
-                raise RuntimeError("Missing API key in environment variable OPENAI_API_KEY")
+def _load_environment():
+    for env_path in env_file_candidates():
+        load_dotenv(dotenv_path=env_path, override=False)
 
+
+class LLMClient:
+
+    def __init__(self):
+        _load_environment()
+
+        # Use environment variables for keys to avoid leaking secrets in source control.
+        self.openai_key = os.getenv("OPENAI_API_KEY")
+        self.gemini_key = os.getenv("GEMINI_API_KEY")
+
+        self.ollama_model = os.getenv("OLLAMA_MODEL", "phi3:mini")
+        self.ollama_host = os.getenv("OLLAMA_HOST", "http://127.0.0.1:11434").rstrip("/")
+
+        self.openai_model = os.getenv("OPENAI_MODEL", "gpt-4.1-mini")
+        self.gemini_model = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+
+        self._openai = None
+        self._genai = None
+        self._types = None
+
+        if self.openai_key:
             try:
                 from openai import OpenAI
-            except Exception as exc:
-                raise RuntimeError("openai is not available in this environment.") from exc
+                self._openai = OpenAI(api_key=self.openai_key)
+            except Exception:
+                pass
 
-            self._openai = OpenAI(api_key=api_key)
-            return
+        if self.gemini_key:
+            try:
+                from google import genai
+                from google.genai import types
+                self._genai = genai
+                self._types = types
+                self._gemini = genai.Client(api_key=self.gemini_key)
+            except Exception:
+                pass
 
-        self.model_name = model or os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
-        api_key = os.getenv(api_key_env)
-        if not api_key:
-            raise RuntimeError(f"Missing API key in environment variable {api_key_env}")
+
+    # ----------------------------------------------------
+    # TASK ROUTING
+    # ----------------------------------------------------
+
+    def route_provider(self, task: str) -> str:
+
+        task = (task or "").lower()
+
+        if task in {"desktop_control", "browser_navigator", "web_search"}:
+            return "ollama"
+
+        if task in {"file_analyzer", "excel_generator", "sales_report_generator"}:
+            if self._genai:
+                return "gemini"
+            if self._openai:
+                return "openai"
+            return "ollama"
+
+        if task in {"general_assistant", "email_writer"}:
+            if self._openai:
+                return "openai"
+            if self._genai:
+                return "gemini"
+            return "ollama"
+
+        if self._openai:
+            return "openai"
+
+        if self._genai:
+            return "gemini"
+
+        return "ollama"
+
+
+    # ----------------------------------------------------
+    # MAIN ENTRY
+    # ----------------------------------------------------
+
+    def complete_for_task(self, task: str, system_prompt: str, user_prompt: str):
+
+        provider = self.route_provider(task)
 
         try:
-            from google import genai
-            from google.genai import types
-        except Exception as exc:
-            raise RuntimeError("google-genai is not available in this environment.") from exc
+            return self._call(provider, system_prompt, user_prompt)
 
-        self._genai = genai
-        self._types = types
-        self.client = self._genai.Client(api_key=api_key)
+        except Exception:
 
-    def complete_json(self, system_prompt: str, user_prompt: str) -> str:
-        if self.provider == "ollama":
-            prompt = (
-                system_prompt.strip()
-                + "\n\nUser command:\n"
-                + user_prompt.strip()
-                + "\n\nRemember: respond with ONLY valid JSON."
-            )
-            return self._ollama_generate(prompt, response_format="json")
+            # fallback order
+            for fallback in ["openai", "gemini", "ollama"]:
+                if fallback == provider:
+                    continue
+                try:
+                    return self._call(fallback, system_prompt, user_prompt)
+                except Exception:
+                    continue
 
-        if self.provider == "openai":
+        raise RuntimeError("All LLM providers failed.")
+
+
+    # ----------------------------------------------------
+    # PROVIDER CALLS
+    # ----------------------------------------------------
+
+    def _call(self, provider, system_prompt, user_prompt):
+
+        if provider == "openai" and self._openai:
+
             response = self._openai.chat.completions.create(
-                model=self.model_name,
-                response_format={"type": "json_object"},
+                model=self.openai_model,
                 messages=[
-                    {"role": "system", "content": system_prompt.strip()},
-                    {"role": "user", "content": user_prompt.strip()},
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
                 ],
             )
-            content = response.choices[0].message.content
-            if not content:
-                raise RuntimeError("OpenAI returned an empty JSON response.")
-            return content
 
-        response = self.client.models.generate_content(
-            model=self.model_name,
-            contents=(
-                system_prompt.strip()
-                + "\n\nUser command:\n"
-                + user_prompt.strip()
-                + "\n\nRemember: respond with ONLY valid JSON."
-            ),
-            config=self._types.GenerateContentConfig(
-                response_mime_type="application/json",
-            ),
-        )
-        return response.text
+            return response.choices[0].message.content.strip()
 
-    def complete_text(self, system_prompt: str, user_prompt: str) -> str:
-        if self.provider == "ollama":
-            return self._ollama_generate(user_prompt, system_prompt=system_prompt)
+        if provider == "gemini" and self._genai:
 
-        if self.provider == "openai":
-            response = self._openai.chat.completions.create(
-                model=self.model_name,
-                messages=[
-                    {"role": "system", "content": system_prompt.strip()},
-                    {"role": "user", "content": user_prompt.strip()},
-                ],
+            response = self._gemini.models.generate_content(
+                model=self.gemini_model,
+                contents=f"{system_prompt}\n\nUser:\n{user_prompt}",
             )
-            content = response.choices[0].message.content
-            if not content:
-                raise RuntimeError("OpenAI returned an empty text response.")
-            return content.strip()
 
-        response = self.client.models.generate_content(
-            model=self.model_name,
-            contents=f"{system_prompt.strip()}\n\nUser:\n{user_prompt.strip()}",
-        )
-        return response.text
+            return response.text.strip()
 
-    @staticmethod
-    def _resolve_provider() -> str:
-        provider = os.getenv("ASSISTANT_LLM_PROVIDER", "").strip().lower()
-        if provider in {"gemini", "ollama", "openai"}:
-            return provider
-        if os.getenv("OPENAI_API_KEY"):
-            return "openai"
-        if os.getenv("OLLAMA_MODEL"):
-            return "ollama"
-        return "gemini"
+        if provider == "ollama":
 
-    def _ollama_generate(
-        self,
-        prompt: str,
-        *,
-        system_prompt: str | None = None,
-        response_format: str | None = None,
-    ) -> str:
-        payload: dict[str, object] = {
-            "model": self.model_name,
-            "prompt": prompt,
+            return self._ollama_generate(system_prompt, user_prompt)
+
+        raise RuntimeError(f"Provider {provider} unavailable")
+
+
+    # ----------------------------------------------------
+    # OLLAMA
+    # ----------------------------------------------------
+
+    def _ollama_generate(self, system_prompt, user_prompt):
+
+        payload = {
+            "model": self.ollama_model,
+            "prompt": user_prompt,
+            "system": system_prompt,
             "stream": False,
         }
-        if system_prompt:
-            payload["system"] = system_prompt
-        if response_format == "json":
-            payload["format"] = "json"
 
         endpoint = f"{self.ollama_host}/api/generate"
+
         req = request.Request(
             endpoint,
-            data=json.dumps(payload).encode("utf-8"),
+            data=json.dumps(payload).encode(),
             headers={"Content-Type": "application/json"},
             method="POST",
         )
-        try:
-            with request.urlopen(req, timeout=60) as response:
-                body = json.loads(response.read().decode("utf-8"))
-        except error.URLError as exc:
-            raise RuntimeError(
-                f"Ollama is unavailable at {self.ollama_host}. Start Ollama and ensure model '{self.model_name}' is installed."
-            ) from exc
 
-        text = str(body.get("response", "")).strip()
+        try:
+            with request.urlopen(req, timeout=15) as res:
+                body = json.loads(res.read().decode())
+
+        except error.URLError as exc:
+            raise RuntimeError("Ollama is not running or model missing.") from exc
+
+        text = body.get("response", "").strip()
+
         if not text:
-            raise RuntimeError(f"Ollama returned an empty response for model '{self.model_name}'.")
+            raise RuntimeError("Ollama returned empty response.")
+
         return text
 
 
-def get_llm_status() -> dict[str, str]:
+# ----------------------------------------------------
+# STATUS CHECK
+# ----------------------------------------------------
+
+def get_llm_status():
+
     _load_environment()
-    provider = LLMClient._resolve_provider()
 
-    if provider == "openai":
-        api_key = os.getenv("OPENAI_API_KEY", "")
-        return {
-            "provider": "openai",
-            "model": os.getenv("OPENAI_MODEL", "gpt-4.1-mini"),
-            "available": str(bool(api_key)).lower(),
-            "message": "OpenAI API key found." if api_key else "Set OPENAI_API_KEY to enable OpenAI.",
-        }
+    status = {}
 
-    if provider == "ollama":
-        model = os.getenv("OLLAMA_MODEL", "phi3")
-        host = os.getenv("OLLAMA_HOST", "http://127.0.0.1:11434").rstrip("/")
-        endpoint = f"{host}/api/tags"
-        req = request.Request(endpoint, method="GET")
-        try:
-            with request.urlopen(req, timeout=5) as response:
-                body = json.loads(response.read().decode("utf-8"))
-            models = [item.get("name", "") for item in body.get("models", [])]
-            available = any(name == model or name.startswith(f"{model}:") for name in models)
-            message = "Phi-3 is ready." if available else f"Ollama is running, but model '{model}' was not found."
-        except Exception as exc:
-            available = False
-            message = f"Ollama check failed: {exc}"
-        return {
-            "provider": "ollama",
-            "model": model,
-            "available": str(available).lower(),
-            "message": message,
-        }
+    if os.getenv("OPENAI_API_KEY"):
+        status["openai"] = "configured"
+    else:
+        status["openai"] = "missing key"
 
-    api_key = os.getenv("GEMINI_API_KEY", "")
-    available = bool(api_key)
-    return {
-        "provider": "gemini",
-        "model": os.getenv("GEMINI_MODEL", "gemini-2.0-flash"),
-        "available": str(available).lower(),
-        "message": "Gemini API key found." if available else "Set GEMINI_API_KEY to enable Gemini.",
-    }
+    if os.getenv("GEMINI_API_KEY"):
+        status["gemini"] = "configured"
+    else:
+        status["gemini"] = "missing key"
 
+    host = os.getenv("OLLAMA_HOST", "http://127.0.0.1:11434")
 
-def _load_environment() -> None:
-    for env_path in env_file_candidates():
-        load_dotenv(dotenv_path=env_path, override=False)
+    try:
+        request.urlopen(f"{host}/api/tags", timeout=3)
+        status["ollama"] = "running"
+    except Exception:
+        status["ollama"] = "not running"
+
+    return status

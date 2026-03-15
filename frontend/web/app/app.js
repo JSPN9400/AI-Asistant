@@ -22,6 +22,11 @@ const fileInput = $('fileInput');
 const loadingOverlay = $('loadingOverlay');
 const retryButton = $('retryButton');
 const statusIndicator = $('statusIndicator');
+const ollamaDot = $('ollamaDot');
+const voiceDot = $('voiceDot');
+const internetDot = $('internetDot');
+const uploadStatus = $('uploadStatus');
+const voiceStatus = $('voiceStatus');
 
 // Use same-origin API for both desktop (embedded backend) and local dev.
 // The backend requires X-API-Key; default matches backend settings.api_key.
@@ -49,6 +54,12 @@ function setStatus(text, variant = 'success') {
   if (!statusIndicator) return;
   statusIndicator.textContent = text;
   statusIndicator.className = `status-pill ${variant}`;
+}
+
+function setStatusDot(dotElement, state) {
+  if (!dotElement) return;
+  dotElement.classList.remove('online', 'offline', 'warn');
+  dotElement.classList.add(state);
 }
 
 async function apiRequest(endpoint, options = {}) {
@@ -113,7 +124,7 @@ async function sendTaskRequest(userInput, attachments = []) {
   const payload = {
     user_input: userInput,
     workspace_id: localStorage.getItem(STORAGE_KEYS.workspaceId) || 'demo-workspace',
-    // For now we just send lightweight metadata for the selected file; backend can extend this later.
+    // Attachments are file IDs returned by the backend /files/upload endpoint
     attachments,
     context: {},
   };
@@ -154,6 +165,17 @@ function updateVoiceButton() {
     voiceBtn.textContent = '🎙';
     voiceBtn.title = 'Voice input';
   }
+  toggleVoiceStatus();
+}
+
+function toggleVoiceStatus() {
+  if (!voiceStatus) return;
+  if (listening) {
+    voiceStatus.hidden = false;
+    voiceStatus.textContent = 'Listening…';
+  } else {
+    voiceStatus.hidden = true;
+  }
 }
 
 function toggleVoice() {
@@ -180,25 +202,115 @@ function toggleVoice() {
   }
 }
 
+function createUploadMessage(fileName) {
+  const messageDiv = document.createElement('div');
+  messageDiv.className = 'message message-assistant upload-message';
+  messageDiv.innerHTML = `
+    <div class="avatar avatar-assistant">📎</div>
+    <div class="bubble">
+      <div class="upload-file-name">Uploading ${fileName}</div>
+      <div class="upload-progress">
+        <div class="upload-progress-bar" style="width: 0%"></div>
+      </div>
+      <div class="upload-status-text">Starting upload…</div>
+    </div>
+  `;
+
+  messagesArea.appendChild(messageDiv);
+  messagesArea.scrollTop = messagesArea.scrollHeight;
+
+  return {
+    messageDiv,
+    progressBar: messageDiv.querySelector('.upload-progress-bar'),
+    statusText: messageDiv.querySelector('.upload-status-text'),
+  };
+}
+
+function showUploadStatus(message, percent = 0) {
+  if (!uploadStatus) return;
+  uploadStatus.hidden = false;
+  const text = uploadStatus.querySelector('.upload-text');
+  const bar = uploadStatus.querySelector('.upload-progress-bar');
+  if (text) text.textContent = message;
+  if (bar) bar.style.width = `${percent}%`;
+}
+
+function hideUploadStatus() {
+  if (!uploadStatus) return;
+  uploadStatus.hidden = true;
+}
+
 function handleFileAttach(event) {
   const file = event.target.files && event.target.files[0];
   if (!file) return;
 
-  // We cannot stream the raw file through this simple HTML client without extra backend endpoints,
-  // so we associate lightweight metadata and rely on the user prompt.
-  const attachmentMeta = {
-    name: file.name,
-    size: file.size,
-    type: file.type || 'application/octet-stream',
+  const workspaceId = localStorage.getItem(STORAGE_KEYS.workspaceId) || 'demo-workspace';
+  const uploadMessage = createUploadMessage(file.name);
+  showUploadStatus(`Uploading ${file.name}…`, 0);
+
+  const xhr = new XMLHttpRequest();
+  xhr.open('POST', `${API_BASE_URL}/files/upload?workspace_id=${encodeURIComponent(workspaceId)}`);
+  xhr.setRequestHeader('X-API-Key', API_KEY);
+
+  xhr.upload.onprogress = (event) => {
+    if (!event.lengthComputable) return;
+    const percent = Math.round((event.loaded / event.total) * 100);
+    if (uploadMessage.progressBar) uploadMessage.progressBar.style.width = `${percent}%`;
+    if (uploadMessage.statusText) uploadMessage.statusText.textContent = `Uploading (${percent}%)`;
+    showUploadStatus(`Uploading ${file.name}…`, percent);
   };
 
-  addMessage(
-    'assistant',
-    `Attached file: ${file.name} (${Math.round(file.size / 1024)} KB). Now ask me: "summarize this file" or "analyze this data".`
-  );
+  xhr.onload = () => {
+    if (xhr.status >= 200 && xhr.status < 300) {
+      const data = JSON.parse(xhr.responseText);
+      window.__sikhaLastAttachment = {
+        file_id: data.file_id,
+        filename: data.filename,
+        content_type: data.content_type,
+      };
 
-  // Store on window so the next sendTaskRequest can include it.
-  window.__sikhaLastAttachment = attachmentMeta;
+      if (uploadMessage.statusText) {
+        uploadMessage.statusText.textContent = `Upload complete: ${data.filename}`;
+      }
+      showUploadStatus(`Uploaded ${data.filename}`, 100);
+
+      setTimeout(() => {
+        hideUploadStatus();
+      }, 2400);
+
+      addMessage(
+        'assistant',
+        `File uploaded as ${data.filename}. Ask me: "summarize this file" or "analyze this data".`
+      );
+    } else {
+      handleUploadError(new Error(`Upload failed: ${xhr.status} ${xhr.statusText}`));
+    }
+    fileInput.value = '';
+  };
+
+  xhr.onerror = () => {
+    handleUploadError(new Error('Network error during file upload.'));
+    fileInput.value = '';
+  };
+
+  const formData = new FormData();
+  formData.append('workspace_id', workspaceId);
+  formData.append('file', file);
+
+  xhr.send(formData);
+
+  function handleUploadError(error) {
+    console.error('File upload failed:', error);
+    if (uploadMessage.statusText) {
+      uploadMessage.statusText.textContent = 'Upload failed';
+    }
+    showUploadStatus('Upload failed', 0);
+    addMessage('assistant', `I could not upload that file: ${error.message}`);
+    window.__sikhaLastAttachment = undefined;
+    setTimeout(() => {
+      hideUploadStatus();
+    }, 2400);
+  }
 }
 
 function setupDrawer() {
@@ -246,6 +358,37 @@ function setupEventListeners() {
   });
 
   $('saveSettingsBtn')?.addEventListener('click', saveSettings);
+}
+
+function handleToolAction(action) {
+  const normalized = (action || '').toLowerCase();
+  switch (normalized) {
+    case 'web-search':
+      messageInput.value = 'search python tutorial';
+      sendMessage();
+      break;
+    case 'system-open':
+      messageInput.value = 'open chrome';
+      sendMessage();
+      break;
+    case 'gmail-check':
+      messageInput.value = 'write an email to my manager about today’s status';
+      sendMessage();
+      break;
+    case 'voice-setup':
+      addMessage(
+        'assistant',
+        recognition
+          ? 'Voice input is available in this environment. Click the mic button and speak your command.'
+          : 'Voice input is not available in this browser shell. Use the desktop Sikha app for richer voice control, or continue with text.'
+      );
+      break;
+    default:
+      addMessage(
+        'assistant',
+        'That tool is not configured yet. You can still type a command directly like "open excel" or "summarize this file".'
+      );
+  }
 }
 
 function toggleDrawer() {
@@ -318,6 +461,7 @@ function initVoiceRecognition() {
   recognition.onend = () => {
     listening = false;
     updateVoiceButton();
+    toggleVoiceStatus();
   };
 }
 
@@ -353,7 +497,7 @@ function sendMessage() {
         result.response ||
         'Task completed successfully';
 
-      addMessage('assistant', assistantReply);
+      streamAssistantMessage(assistantReply);
       loadHistory();
       // Clear attachment after it has been used once
       window.__sikhaLastAttachment = undefined;
@@ -363,6 +507,30 @@ function sendMessage() {
       addMessage('assistant', `Sorry, I encountered an error: ${error.message}`);
       console.error('Task request failed:', error);
     });
+}
+
+function streamAssistantMessage(content) {
+  const messageDiv = document.createElement('div');
+  messageDiv.className = 'message message-assistant';
+  messageDiv.innerHTML = `
+    <div class="message-avatar">🤖</div>
+    <div class="bubble"><span class="streaming-text"></span></div>
+  `;
+
+  const textEl = messageDiv.querySelector('.streaming-text');
+  messagesArea.appendChild(messageDiv);
+  messagesArea.scrollTop = messagesArea.scrollHeight;
+
+  let index = 0;
+  const interval = setInterval(() => {
+    if (!textEl) return;
+    textEl.textContent += content.charAt(index);
+    index += 1;
+    messagesArea.scrollTop = messagesArea.scrollHeight;
+    if (index >= content.length) {
+      clearInterval(interval);
+    }
+  }, 16);
 }
 
 function addMessage(type, content) {
@@ -386,6 +554,7 @@ function addTypingIndicator() {
     <div class="message-avatar">🤖</div>
     <div class="message-content">
       <div class="message-text">
+        <div class="typing-line">Sikha is thinking...</div>
         <div class="typing-dots">
           <span></span>
           <span></span>
@@ -450,6 +619,12 @@ async function updateStatusIndicators() {
       const llmStatus = status.llm || {};
       const llmBadge = $('llmBadge');
       const voiceBadge = $('voiceBadge');
+      const isOnline = status.status === 'ok' || llmStatus.available === 'true';
+
+      // Header dots
+      setStatusDot(ollamaDot, llmStatus.available === 'true' ? 'online' : 'offline');
+      setStatusDot(voiceDot, recognition ? 'online' : 'warn');
+      setStatusDot(internetDot, isOnline ? 'online' : 'offline');
 
       if (llmBadge) {
         llmBadge.textContent = llmStatus.available === 'true' ? 'Ready' : 'Offline';
@@ -461,11 +636,20 @@ async function updateStatusIndicators() {
         voiceBadge.className = `status-badge ${recognition ? 'success' : 'warning'}`;
       }
 
-      setStatus(llmStatus.available === 'true' ? 'Ready' : 'Offline', llmStatus.available === 'true' ? 'success' : 'danger');
+      setStatus(
+        llmStatus.available === 'true' ? 'Ready' : 'Offline',
+        llmStatus.available === 'true' ? 'success' : 'danger'
+      );
+
+      toggleVoiceStatus();
     })
     .catch((error) => {
       console.error('Failed to update status:', error);
       setStatus('Offline', 'danger');
+      setStatusDot(ollamaDot, 'offline');
+      setStatusDot(internetDot, 'offline');
+      setStatusDot(voiceDot, 'warn');
+      toggleVoiceStatus();
     });
 }
 

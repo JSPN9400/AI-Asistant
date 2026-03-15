@@ -1,8 +1,9 @@
 import json
 import re
 from dataclasses import dataclass
+from difflib import get_close_matches
 from importlib import import_module
-from typing import TYPE_CHECKING, Any, Dict
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, List
 
 from memory.sqlite_store import SQLiteMemory
 
@@ -16,6 +17,9 @@ class ParsedCommand:
     slots: Dict[str, Any]
     raw_text: str
     language: str = "unknown"
+    confidence: float = 0.0
+    workflow: Optional[List[Dict[str, Any]]] = None  # For multi-step tasks
+    requires_confirmation: bool = False
 
 
 SYSTEM_PROMPT = """
@@ -40,6 +44,7 @@ Supported intents (examples):
 - CREATE_TASK: {"description": "..."}
 - LIST_TASKS: {"status": "pending" | "done", "limit": 10}
 - COMPLETE_TASK: {"task_id": 1}
+- HELP: {}                                # show capabilities
 If unclear, use intent "SMALL_TALK" with {"response": "..."}.
 
 Hindi examples (map them to intents above):
@@ -49,7 +54,44 @@ Hindi examples (map them to intents above):
 - "YouTube pe Arijit Singh ke gaane search karo" -> {"intent": "YOUTUBE_SEARCH", "slots": {"query": "Arijit Singh songs"}}
 - "YouTube pe lo-fi music chalao" -> {"intent": "YOUTUBE_PLAY", "slots": {"query": "lofi music"}}
 - "Mere liye ek note banao: kal subah jaldi uthna hai" -> {"intent": "CREATE_NOTE", "slots": {"content": "kal subah jaldi uthna hai"}}
+- "Madad" -> {"intent": "HELP", "slots": {}}
 """
+
+
+# Intent Aliases
+OPEN_ALIASES = ["open", "launch", "start", "kholo", "chalu karo"]
+CLOSE_ALIASES = ["close", "stop", "band karo", "band kar do"]
+SEARCH_ALIASES = ["search", "dhundo", "search karo"]
+PLAY_ALIASES = ["play", "chalao", "gaana chalao", "video chalao"]
+CREATE_ALIASES = ["create", "make", "banao", "ek banao"]
+LIST_ALIASES = ["list", "show", "my", "dikhao", "mere"]
+READ_ALIASES = ["read", "padho"]
+SEND_ALIASES = ["send", "bhejo"]
+TAKE_ALIASES = ["take", "lo"]
+COMPLETE_ALIASES = ["complete", "mark", "done", "khatam"]
+
+# Application Knowledge Base
+APP_MAP = {
+    "chrome": "chrome",
+    "google chrome": "chrome",
+    "firefox": "firefox",
+    "edge": "msedge",
+    "excel": "excel",
+    "word": "winword",
+    "powerpoint": "powerpnt",
+    "notepad": "notepad",
+    "calculator": "calc",
+    "vscode": "code",
+    "visual studio code": "code",
+    "spotify": "spotify",
+    "vlc": "vlc",
+    "paint": "mspaint",
+    "cmd": "cmd",
+    "command prompt": "cmd",
+}
+
+# Dangerous intents requiring confirmation
+DANGEROUS_INTENTS = {"SEND_EMAIL", "DELETE_FILE", "INSTALL_PROGRAM", "DOWNLOAD_FILE"}
 
 
 class NLU:
@@ -73,6 +115,8 @@ class NLU:
                 slots=slots,
                 raw_text=text,
                 language=language,
+                confidence=0.9,
+                requires_confirmation=intent in DANGEROUS_INTENTS,
             )
 
         llm = self._get_llm()
@@ -80,11 +124,14 @@ class NLU:
             try:
                 response = llm.complete_json(SYSTEM_PROMPT, cleaned_text or text)
                 data = json.loads(response)
+                intent = data.get("intent", "UNKNOWN")
                 return ParsedCommand(
-                    intent=data.get("intent", "UNKNOWN"),
+                    intent=intent,
                     slots=data.get("slots", {}),
                     raw_text=text,
                     language=language,
+                    confidence=0.7,
+                    requires_confirmation=intent in DANGEROUS_INTENTS,
                 )
             except Exception as exc:
                 self._llm_error = str(exc)
@@ -95,6 +142,8 @@ class NLU:
             slots=data.get("slots", {}),
             raw_text=text,
             language=language,
+            confidence=data.get("confidence", 0.5),
+            requires_confirmation=data.get("intent", "UNKNOWN") in DANGEROUS_INTENTS,
         )
 
     def learn_from_result(self, parsed: ParsedCommand, success: bool) -> None:
@@ -142,34 +191,21 @@ class NLU:
 
         if self._matches_any(
             normalized,
-            "take screenshot",
-            "screenshot",
-            "screen shot",
-            "screenshot lo",
-            "screen shot lo",
+            *(TAKE_ALIASES + ["screenshot", "screen shot"]),
         ):
-            return {"intent": "TAKE_SCREENSHOT", "slots": {}}
+            return {"intent": "TAKE_SCREENSHOT", "slots": {}, "confidence": 0.8}
 
         if self._matches_any(
             normalized,
-            "list notes",
-            "show notes",
-            "my notes",
-            "notes dikhao",
-            "mere notes",
+            *(LIST_ALIASES + ["notes"]),
         ):
-            return {"intent": "LIST_NOTES", "slots": {}}
+            return {"intent": "LIST_NOTES", "slots": {}, "confidence": 0.8}
 
         if self._matches_any(
             normalized,
-            "read emails",
-            "read email",
-            "check email",
-            "gmail",
-            "email padho",
-            "emails dikhao",
+            *(READ_ALIASES + ["emails", "check email", "gmail"]),
         ):
-            return {"intent": "READ_EMAILS", "slots": {"limit": 5}}
+            return {"intent": "READ_EMAILS", "slots": {"limit": 5}, "confidence": 0.8}
 
         if self._matches_any(
             normalized,
@@ -180,76 +216,54 @@ class NLU:
             "kya dikh raha hai",
             "samne kya hai",
         ):
-            return {"intent": "DESCRIBE_SCENE", "slots": {}}
+            return {"intent": "DESCRIBE_SCENE", "slots": {}, "confidence": 0.8}
 
         note_content = self._extract_after_prefix(
             raw,
-            "create a note",
-            "create note",
-            "make a note",
-            "note",
-            "save note",
-            "note banao",
-            "ek note banao",
+            *(CREATE_ALIASES + ["note"]),
         )
         if note_content:
-            return {"intent": "CREATE_NOTE", "slots": {"content": note_content}}
+            return {"intent": "CREATE_NOTE", "slots": {"content": note_content}, "confidence": 0.7}
 
         website_target = self._extract_open_target(normalized)
         if website_target:
             website_targets = {"youtube", "google", "gmail", "facebook", "instagram", "github"}
             if website_target.lower() in website_targets:
-                return {"intent": "OPEN_WEBSITE", "slots": {"query": website_target}}
-            return {"intent": "OPEN_APPLICATION", "slots": {"app_name": website_target}}
+                return {"intent": "OPEN_WEBSITE", "slots": {"query": website_target}, "confidence": 0.8}
+            app_name = self._fuzzy_match_app(website_target)
+            if app_name:
+                return {"intent": "OPEN_APPLICATION", "slots": {"app_name": app_name}, "confidence": 0.7}
+            return {"intent": "OPEN_APPLICATION", "slots": {"app_name": website_target}, "confidence": 0.5}
 
         task_content = self._extract_after_prefix(
             raw,
-            "create task",
-            "add task",
-            "new task",
-            "task",
-            "task banao",
-            "ek task banao",
+            *(CREATE_ALIASES + ["task"]),
         )
         if task_content:
-            return {"intent": "CREATE_TASK", "slots": {"description": task_content}}
+            return {"intent": "CREATE_TASK", "slots": {"description": task_content}, "confidence": 0.7}
 
         if self._matches_any(
             normalized,
-            "list tasks",
-            "show tasks",
-            "my tasks",
-            "tasks dikhao",
-            "mere tasks",
+            *(LIST_ALIASES + ["tasks"]),
         ):
             status = "done" if "done" in normalized or "completed" in normalized else None
             if "pending" in normalized or "baaki" in normalized:
                 status = "pending"
-            return {"intent": "LIST_TASKS", "slots": {"status": status, "limit": 10}}
+            return {"intent": "LIST_TASKS", "slots": {"status": status, "limit": 10}, "confidence": 0.8}
 
         task_id = self._extract_task_id(normalized)
         if task_id is not None and self._matches_any(
             normalized,
-            "complete task",
-            "mark task",
-            "done task",
-            "task complete",
-            "task khatam",
+            *(COMPLETE_ALIASES + ["task"]),
         ):
-            return {"intent": "COMPLETE_TASK", "slots": {"task_id": task_id}}
+            return {"intent": "COMPLETE_TASK", "slots": {"task_id": task_id}, "confidence": 0.7}
 
         youtube_play = self._extract_after_prefix(
             raw,
-            "play on youtube",
-            "play youtube",
-            "youtube play",
-            "play",
-            "youtube pe chalao",
-            "gaana chalao",
-            "video chalao",
+            *(PLAY_ALIASES + ["on youtube", "youtube"]),
         )
         if youtube_play:
-            return {"intent": "YOUTUBE_PLAY", "slots": {"query": youtube_play}}
+            return {"intent": "YOUTUBE_PLAY", "slots": {"query": youtube_play}, "confidence": 0.7}
 
         youtube_search_match = re.search(
             r"youtube\s+(?:pe|par)\s+(.+?)\s+search\s+karo",
@@ -259,18 +273,15 @@ class NLU:
             return {
                 "intent": "YOUTUBE_SEARCH",
                 "slots": {"query": youtube_search_match.group(1).strip()},
+                "confidence": 0.6,
             }
 
         youtube_search = self._extract_after_prefix(
             raw,
-            "search youtube for",
-            "youtube search",
-            "search on youtube",
-            "youtube pe search karo",
-            "youtube par search karo",
+            *(SEARCH_ALIASES + ["youtube for", "on youtube", "youtube"]),
         )
         if youtube_search:
-            return {"intent": "YOUTUBE_SEARCH", "slots": {"query": youtube_search}}
+            return {"intent": "YOUTUBE_SEARCH", "slots": {"query": youtube_search}, "confidence": 0.7}
 
         google_search_match = re.search(
             r"google\s+(?:pe|par)\s+(.+?)\s+search\s+karo",
@@ -280,6 +291,7 @@ class NLU:
             return {
                 "intent": "GOOGLE_SEARCH",
                 "slots": {"query": google_search_match.group(1).strip()},
+                "confidence": 0.6,
             }
 
         reverse_google_match = re.search(
@@ -290,54 +302,61 @@ class NLU:
             return {
                 "intent": "GOOGLE_SEARCH",
                 "slots": {"query": reverse_google_match.group(1).strip()},
+                "confidence": 0.6,
             }
 
         google_query = self._extract_after_prefix(
             raw,
-            "search google for",
-            "google search",
-            "search for",
-            "google pe search karo",
-            "google par search karo",
-            "dhundo",
+            *(SEARCH_ALIASES + ["google for", "google"]),
         )
         if google_query:
-            return {"intent": "GOOGLE_SEARCH", "slots": {"query": google_query}}
+            return {"intent": "GOOGLE_SEARCH", "slots": {"query": google_query}, "confidence": 0.7}
 
         app_name = self._extract_after_prefix(
             raw,
-            "open app",
-            "open application",
-            "start app",
-            "launch",
-            "open",
-            "khol do",
-            "kholo",
-            "chalu karo",
+            *(OPEN_ALIASES + ["app", "application"]),
         )
         if app_name:
             website_targets = {"youtube", "google", "gmail", "facebook", "instagram", "github"}
             if app_name.lower() in website_targets:
-                return {"intent": "OPEN_WEBSITE", "slots": {"query": app_name}}
-            return {"intent": "OPEN_APPLICATION", "slots": {"app_name": app_name}}
+                return {"intent": "OPEN_WEBSITE", "slots": {"query": app_name}, "confidence": 0.8}
+            fuzzy_app = self._fuzzy_match_app(app_name)
+            if fuzzy_app:
+                return {"intent": "OPEN_APPLICATION", "slots": {"app_name": fuzzy_app}, "confidence": 0.7}
+            return {"intent": "OPEN_APPLICATION", "slots": {"app_name": app_name}, "confidence": 0.6}
 
-        close_name = self._extract_after_prefix(raw, "close", "stop", "band karo", "band kar do")
+        close_name = self._extract_after_prefix(raw, *(CLOSE_ALIASES + ["app", "application"]))
         if close_name:
-            return {"intent": "CLOSE_APPLICATION", "slots": {"app_name": close_name}}
+            fuzzy_app = self._fuzzy_match_app(close_name)
+            if fuzzy_app:
+                close_name = fuzzy_app
+            return {"intent": "CLOSE_APPLICATION", "slots": {"app_name": close_name}, "confidence": 0.7}
 
         url_match = re.search(r"https?://\S+", raw)
         if url_match:
-            return {"intent": "OPEN_WEBSITE", "slots": {"url": url_match.group(0)}}
+            return {"intent": "OPEN_WEBSITE", "slots": {"url": url_match.group(0)}, "confidence": 0.9}
+
+        # Send email
+        send_match = re.search(r"send\s+email\s+to\s+(.+?)\s+about\s+(.+)", raw, re.IGNORECASE)
+        if send_match:
+            to = send_match.group(1).strip()
+            subject = send_match.group(2).strip()
+            return {"intent": "SEND_EMAIL", "slots": {"to": to, "subject": subject}, "confidence": 0.7}
+
+        # Help
+        if self._matches_any(normalized, "help", "what can you do", "commands", "madad", "kya kar sakti ho"):
+            return {"intent": "HELP", "slots": {}, "confidence": 0.8}
 
         return {
             "intent": "SMALL_TALK",
             "slots": {
                 "response": self._reply_for_language(
                     language,
-                    "I can help with apps, web search, notes, tasks, screenshots, email, and vision.",
-                    "Main apps, web search, notes, tasks, screenshot, email aur vision mein help kar sakti hoon.",
+                    "I can help with apps, web search, notes, tasks, screenshots, email, and vision. Say 'help' for more.",
+                    "Main apps, web search, notes, tasks, screenshot, email aur vision mein help kar sakti hoon. 'Madad' kahiye aur janiye.",
                 )
             },
+            "confidence": 0.3,
         }
 
     def _lookup_learned_command(self, text: str) -> tuple[str, Dict[str, Any]] | None:
@@ -356,12 +375,12 @@ class NLU:
 
     @staticmethod
     def _extract_open_target(text: str) -> str | None:
+        aliases = "|".join(OPEN_ALIASES)
         patterns = [
-            r"^(.+?)\s+(?:kholo|khol do|kholdo|open)$",
-            r"^(.+?)\s+(?:chalu karo|start karo)$",
+            rf"^(.+?)\s+(?:{aliases})$",
         ]
         for pattern in patterns:
-            match = re.search(pattern, text)
+            match = re.search(pattern, text, re.IGNORECASE)
             if match:
                 return match.group(1).strip(" :,-")
         return None
@@ -386,11 +405,21 @@ class NLU:
         return pattern.sub("", cleaned, count=1).strip()
 
     @staticmethod
+    def _fuzzy_match_app(app_name: str) -> str | None:
+        app_name_lower = app_name.lower()
+        if app_name_lower in APP_MAP:
+            return APP_MAP[app_name_lower]
+        matches = get_close_matches(app_name_lower, APP_MAP.keys(), n=1, cutoff=0.6)
+        if matches:
+            return APP_MAP[matches[0]]
+        return None
+
+    @staticmethod
     def _contains_devanagari(text: str) -> bool:
         return any("\u0900" <= ch <= "\u097f" for ch in text)
 
     def _detect_language(self, text: str) -> str:
-        if self._contains_devanagari(text):
+        if NLU._contains_devanagari(text):
             return "hindi"
 
         normalized = self._normalize_text(text)
