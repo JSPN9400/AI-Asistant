@@ -28,6 +28,8 @@ def run_task(
                 "attachments": payload.attachments,
                 "context": payload.context or {},
             },
+            confirmation=payload.confirmation,
+            workflow_state=payload.workflow_state,
         )
     except WorkspaceAccessError as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc

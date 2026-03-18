@@ -11,6 +11,10 @@ class TaskRequest(BaseModel):
     context: dict[str, Any] | None = None
     attachments: list[str] = Field(default_factory=list)
 
+    # Optional helpers for multi-step workflows
+    confirmation: bool | None = None
+    workflow_state: dict[str, Any] | None = None
+
 
 class StructuredTask(BaseModel):
     task: str
