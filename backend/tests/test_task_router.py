@@ -1,3 +1,7 @@
+from pathlib import Path
+
+from app.db.models import UploadedFile
+from app.db.repositories.files import UploadedFileRepository
 from app.services.task_router import TaskRouter
 
 
@@ -14,6 +18,49 @@ def test_sales_report_route() -> None:
     )
     assert result["task"] == "sales_report_generator"
     assert result["result"]["status"] == "success"
+    assert result["result"]["assistant_reply"]
+
+
+def test_floor_wise_report_generation(tmp_path: Path) -> None:
+    router = TaskRouter()
+    csv_path = tmp_path / "floor-metrics.csv"
+    csv_path.write_text(
+        "Floor,Area,Cost,Units\n"
+        "Ground,1200,10000,12\n"
+        "Ground,800,5000,8\n"
+        "First,1000,9000,10\n",
+        encoding="utf-8",
+    )
+    file_id = "test-floor-report"
+    UploadedFileRepository().create(
+        UploadedFile(
+            id=file_id,
+            workspace_id="demo-workspace",
+            uploaded_by="user-1",
+            filename="floor-metrics.csv",
+            storage_path=str(csv_path),
+            content_type="text/csv",
+        )
+    )
+
+    result = router.handle(
+        "Calculate for every floor and make a good PDF report.",
+        {
+            "workspace_id": "demo-workspace",
+            "user_id": "user-1",
+            "attachments": [file_id],
+            "context": {},
+        },
+    )
+
+    assert result["task"] == "sales_report_generator"
+    assert result["result"]["status"] == "success"
+    assert result["result"]["group_by"] == "Floor"
+    assert result["result"]["totals"]["Area"] == 3000.0
+    assert len(result["result"]["floor_breakdown"]) == 2
+    assert "html" in result["result"]["report_files"]
+    assert "json" in result["result"]["report_files"]
+    assert "text" in result["result"]["report_files"]
     assert result["result"]["assistant_reply"]
 
 

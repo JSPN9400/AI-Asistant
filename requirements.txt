@@ -20,3 +20,4 @@ pydantic-settings
 sqlmodel
 email-validator
 pywebview
+reportlab

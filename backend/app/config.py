@@ -8,8 +8,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_DATABASE_PATH = PROJECT_ROOT / "work_assistant.db"
 DEFAULT_FILE_STORAGE_PATH = PROJECT_ROOT / "storage"
+DEFAULT_DATABASE_PATH = BACKEND_ROOT / "work_assistant.db"
 
 
 def _sqlite_url(path: Path) -> str:

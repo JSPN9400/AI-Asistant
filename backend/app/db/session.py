@@ -7,6 +7,13 @@ from app.core.security import hash_text
 from app.db.models import Organization, User, UserCredential, Workspace, WorkspaceMembership
 
 
+if settings.database_url.startswith("sqlite:///"):
+    db_path = settings.database_url.removeprefix("sqlite:///")
+    if db_path:
+        from pathlib import Path
+
+        Path(db_path).expanduser().resolve().parent.mkdir(parents=True, exist_ok=True)
+
 engine = create_engine(settings.database_url, echo=False)
 _init_lock = Lock()
 _db_initialized = False

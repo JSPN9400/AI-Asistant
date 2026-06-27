@@ -36,6 +36,18 @@ body {
   overflow: hidden;
 }
 
+body.quotation-mode {
+  overflow: auto;
+  background:
+    radial-gradient(circle at top left, rgba(14, 165, 233, 0.22), transparent 30%),
+    linear-gradient(180deg, #f5f0e7 0%, #efe6d9 45%, #f8f6f1 100%);
+  color: #182026;
+}
+
+.hidden {
+  display: none !important;
+}
+
 button,
 input,
 select,
@@ -139,6 +151,236 @@ textarea {
 .btn.small {
   padding: 7px 13px;
   font-size: 12px;
+}
+
+.quotation-page {
+  min-height: 100vh;
+  padding: 24px;
+}
+
+.quotation-shell {
+  max-width: 1320px;
+  margin: 0 auto;
+}
+
+.quotation-hero {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 28px;
+  border-radius: 28px;
+  background: linear-gradient(135deg, #17333d, #285c5b 60%, #c08457 100%);
+  color: #fff7ef;
+  box-shadow: 0 20px 55px rgba(38, 49, 52, 0.22);
+}
+
+.eyebrow {
+  margin: 0 0 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.quotation-hero h1 {
+  margin: 0 0 12px;
+  font-size: clamp(30px, 5vw, 54px);
+  line-height: 1.02;
+}
+
+.hero-copy {
+  max-width: 720px;
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.6;
+  color: rgba(255, 247, 239, 0.88);
+}
+
+.hero-badge-stack {
+  display: grid;
+  gap: 10px;
+  min-width: 160px;
+  align-content: start;
+}
+
+.hero-badge {
+  border-radius: 999px;
+  padding: 11px 16px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  text-align: center;
+  font-weight: 600;
+}
+
+.quotation-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(320px, 0.9fr);
+  gap: 22px;
+  margin-top: 24px;
+  align-items: start;
+}
+
+.quote-card {
+  background: rgba(255, 252, 246, 0.94);
+  border: 1px solid rgba(201, 181, 152, 0.45);
+  border-radius: 24px;
+  padding: 22px;
+  box-shadow: 0 18px 44px rgba(62, 42, 19, 0.1);
+}
+
+.section-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.section-head h2,
+.quote-review-panel h3 {
+  margin: 0 0 6px;
+  color: #16313c;
+}
+
+.section-head p,
+.quote-review-panel p {
+  margin: 0;
+  color: #5f6f78;
+  line-height: 1.5;
+}
+
+.quote-grid {
+  display: grid;
+  gap: 14px;
+}
+
+.quote-grid-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.quote-grid-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.quote-grid-item {
+  grid-template-columns: 1.1fr 1.4fr 0.7fr 0.7fr 0.8fr 0.85fr;
+  align-items: end;
+}
+
+.quote-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.quote-field span {
+  font-size: 13px;
+  font-weight: 600;
+  color: #44535b;
+}
+
+.quote-field input,
+.quote-summary-card textarea {
+  width: 100%;
+  border-radius: 16px;
+  border: 1px solid rgba(195, 176, 146, 0.7);
+  background: #fffdfa;
+  color: #182026;
+  padding: 12px 14px;
+  font-size: 14px;
+}
+
+.quote-item-row {
+  padding: 14px;
+  border-radius: 18px;
+  background: #f9f4eb;
+  border: 1px solid rgba(207, 188, 158, 0.5);
+  margin-bottom: 12px;
+}
+
+.quote-item-wide {
+  grid-column: span 1;
+}
+
+.quote-row-total {
+  display: grid;
+  gap: 8px;
+  align-self: stretch;
+  padding: 12px;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #fff8ef, #f4ead9);
+  border: 1px solid rgba(203, 182, 148, 0.5);
+}
+
+.quote-row-total span {
+  font-size: 12px;
+  color: #5f6f78;
+}
+
+.quote-row-total strong {
+  font-size: 18px;
+  color: #16313c;
+}
+
+.quote-section-gap {
+  margin-top: 18px;
+}
+
+.summary-stack {
+  display: grid;
+  gap: 10px;
+}
+
+.summary-metric {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: #f7efe1;
+  border: 1px solid rgba(208, 184, 146, 0.48);
+}
+
+.summary-metric strong {
+  color: #16313c;
+  font-size: 18px;
+}
+
+.quote-review-panel {
+  margin-top: 18px;
+}
+
+.quote-review-list {
+  display: grid;
+  gap: 10px;
+}
+
+.floor-review-card {
+  padding: 14px;
+  border-radius: 18px;
+  background: #fff9f0;
+  border: 1px solid rgba(208, 184, 146, 0.45);
+}
+
+.floor-review-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+  color: #16313c;
+}
+
+.quote-summary-card textarea {
+  min-height: 240px;
+  resize: vertical;
+}
+
+.quote-empty {
+  padding: 16px;
+  border-radius: 14px;
+  background: #f6efe5;
+  color: #6b7280;
 }
 
 /* Sidebar */
@@ -835,6 +1077,52 @@ textarea {
 
   .backdrop.active + .app .shell {
     pointer-events: none;
+  }
+}
+
+@media (max-width: 1100px) {
+  .quotation-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .quote-grid-item {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .quote-row-total {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 720px) {
+  .quotation-page {
+    padding: 14px;
+  }
+
+  .quotation-hero {
+    padding: 22px 18px;
+    border-radius: 22px;
+    flex-direction: column;
+  }
+
+  .hero-badge-stack,
+  .quote-grid-2,
+  .quote-grid-3,
+  .quote-grid-item {
+    grid-template-columns: 1fr;
+  }
+
+  .quote-card {
+    padding: 16px;
+    border-radius: 20px;
+  }
+
+  .section-head {
+    flex-direction: column;
+  }
+
+  .summary-metric {
+    padding: 12px 14px;
   }
 }
 

@@ -204,6 +204,18 @@ class LLMReasoner:
                 },
             )
 
+        if any(phrase in text for phrase in {"floor wise", "floor-wise", "har floor", "each floor", "per floor"}):
+            return StructuredTask(
+                task="sales_report_generator",
+                parameters={
+                    "data_source": "uploaded_file",
+                    "format": "professional_report",
+                    "period": "custom",
+                    "audience": "manager",
+                    "group_by": "floor",
+                },
+            )
+
         if any(phrase in text for phrase in {"write report", "make report", "generate report", "report banao"}):
             return StructuredTask(
                 task="sales_report_generator",
@@ -212,6 +224,18 @@ class LLMReasoner:
                     "format": "professional_report",
                     "period": "weekly",
                     "audience": "manager",
+                },
+            )
+
+        if "pdf" in text and any(phrase in text for phrase in {"report", "calculate", "analysis"}):
+            return StructuredTask(
+                task="sales_report_generator",
+                parameters={
+                    "data_source": "uploaded_file",
+                    "format": "professional_report",
+                    "period": "custom",
+                    "audience": "manager",
+                    "group_by": "floor" if "floor" in text else "",
                 },
             )
 

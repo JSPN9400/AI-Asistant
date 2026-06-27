@@ -1,403 +1,428 @@
 # Sikha Assistant
 
-**Sikha** is a modular desktop voice assistant for Windows with support for Hindi/English/Hinglish commands, local memory (notes/tasks/command history), web actions, Gmail integration, and basic vision.
+Sikha is a Windows-first AI assistant project with three main surfaces:
 
----
+1. `Desktop assistant`
+2. `Embedded web dashboard`
+3. `FastAPI backend with plugin-based task routing`
 
-## ✅ What the Assistant Does
+It supports voice and text interaction, local desktop actions, memory, screenshots, web search helpers, Gmail actions, basic webcam description, and a work-assistant dashboard with switchable LLM providers.
 
-### Core Capabilities
-- Voice input using **Vosk** (Hindi/English models)
-- Text input fallback (works without audio devices)
-- Wake-word mode ("Sikha/Shikha") to ignore background speech
-- Command learning (repeats improve recognition)
+## What This App Can Do
 
-### Built-in Actions
-- Open/close applications (e.g., `open chrome`, `close spotify`)
-- Open websites or search engines (e.g., `youtube`, `google`)
-- Search Google and YouTube (e.g., `search google for ...`, `search youtube for ...`)
-- Play YouTube videos (`play youtube ...`)
+### Desktop assistant
+- Listen to Hindi, English, and Hinglish-style commands
+- Accept typed commands when voice is unavailable
+- Speak replies using local/browser TTS fallback
+- Open apps like Chrome, Notepad, Calculator, File Explorer
+- Open Office apps like Excel, Word, and PowerPoint
+- Open local files and folders through the OS
+- Open websites and search pages
+- Search Google and YouTube
+- Play YouTube results in the browser
 - Take screenshots
-- Notes: create / list
-- Tasks: create / list / complete
-- Gmail: read/send emails (requires OAuth setup)
-- Vision: describe your webcam scene
+- Create notes
+- Create, list, and complete tasks
+- Read and send Gmail messages after OAuth setup
+- Describe the webcam scene
 
----
+### Web dashboard
+- Chat-style UI similar to a modern AI dashboard
+- Send task requests to the backend
+- See task history
+- Upload files into a workspace
+- Switch LLM provider and model from the dashboard
+- Check whether the selected model is `ready`, `offline`, `missing_key`, `missing_model`, `disabled`, or `exhausted`
+- Use work plugins like email drafting, meeting summary, sales report generation, spreadsheet analysis, and browser guidance
 
-## 🛠️ Requirements
+### Backend
+- FastAPI API for auth, tasks, file upload, plugin listing, and system status
+- Plugin discovery system under [backend/app/plugins](/e:/My%20project%20with%20git/AI-Asistant/backend/app/plugins)
+- Workspace-aware task routing and task history
+- Local SQLite storage by default
+- Configurable LLM gateway for `ollama`, `openai`, and `gemini`
 
-- Windows (desktop-focused, uses Windows TTS/COM and audio APIs)
+## What It Cannot Fully Do Yet
+
+- The web dashboard cannot control your local computer directly
+- The web dashboard cannot open your local Excel/Word/Chrome apps
+- Full Excel automation is not complete yet
+- It does not yet do full "search internet, collect data, open Excel, fill workbook automatically" end-to-end
+- Browser automation still depends on Selenium/ChromeDriver for some actions
+
+So if you ask:
+
+- `open excel`
+  Desktop app: `yes`
+  Web dashboard: `no`
+- `open C:\Users\...\report.xlsx`
+  Desktop app: `yes`, if the path exists
+  Web dashboard: `no`
+- `search human growth index and create the table inside Excel automatically`
+  Current state: `not fully yet`
+
+## App Modes
+
+### 1. Desktop mode
+Runs the Windows assistant directly.
+
+Main files:
+- [main.py](/e:/My%20project%20with%20git/AI-Asistant/main.py)
+- [assistant/runtime.py](/e:/My%20project%20with%20git/AI-Asistant/assistant/runtime.py)
+- [sikha_gui.py](/e:/My%20project%20with%20git/AI-Asistant/sikha_gui.py)
+- [sikha_desktop.py](/e:/My%20project%20with%20git/AI-Asistant/sikha_desktop.py)
+
+### 2. Web dashboard mode
+Runs the backend and serves the web app from the backend root.
+
+Main files:
+- [backend/app/main.py](/e:/My%20project%20with%20git/AI-Asistant/backend/app/main.py)
+- [frontend/web/app/index.html](/e:/My%20project%20with%20git/AI-Asistant/frontend/web/app/index.html)
+- [frontend/web/app/app.js](/e:/My%20project%20with%20git/AI-Asistant/frontend/web/app/app.js)
+
+## Full Function List
+
+### Voice and speech
+- Speech-to-text through Vosk models
+- Text fallback if mic/model is missing
+- Wake-word support
+- Female-voice preference support through TTS settings
+- Browser TTS fallback when native voice backend fails
+
+Relevant files:
+- [voice/speech_to_text.py](/e:/My%20project%20with%20git/AI-Asistant/voice/speech_to_text.py)
+- [voice/text_to_speech.py](/e:/My%20project%20with%20git/AI-Asistant/voice/text_to_speech.py)
+
+### System control
+- Open application by name
+- Close application by name
+- Open local file path
+- Open local folder path
+- Open Office applications
+- Take screenshot
+
+Relevant files:
+- [actions/system_actions.py](/e:/My%20project%20with%20git/AI-Asistant/actions/system_actions.py)
+
+### Web actions
+- Google search
+- Open links
+- Read page title
+- Browser-based helpers
+
+Relevant files:
+- [actions/web_actions.py](/e:/My%20project%20with%20git/AI-Asistant/actions/web_actions.py)
+- [integrations/browser/selenium_client.py](/e:/My%20project%20with%20git/AI-Asistant/integrations/browser/selenium_client.py)
+
+### Memory
+- Create notes
+- List notes
+- Create tasks
+- List tasks
+- Complete tasks
+- Persist assistant memory to SQLite
+
+Relevant files:
+- [actions/memory_actions.py](/e:/My%20project%20with%20git/AI-Asistant/actions/memory_actions.py)
+- [memory/sqlite_store.py](/e:/My%20project%20with%20git/AI-Asistant/memory/sqlite_store.py)
+
+### Gmail
+- Read emails
+- Send emails
+- OAuth-based Google authentication
+
+Relevant files:
+- [actions/gmail_actions.py](/e:/My%20project%20with%20git/AI-Asistant/actions/gmail_actions.py)
+- [integrations/google/gmail_client.py](/e:/My%20project%20with%20git/AI-Asistant/integrations/google/gmail_client.py)
+- [integrations/google/auth.py](/e:/My%20project%20with%20git/AI-Asistant/integrations/google/auth.py)
+
+### Vision
+- Capture webcam frame
+- Describe scene
+- Object/visual helper modules
+
+Relevant files:
+- [vision/vision_actions.py](/e:/My%20project%20with%20git/AI-Asistant/vision/vision_actions.py)
+- [vision/camera.py](/e:/My%20project%20with%20git/AI-Asistant/vision/camera.py)
+
+### LLM
+- Local Ollama support
+- OpenAI support
+- Gemini support
+- Dashboard model switching
+- Backend model health check
+
+Relevant files:
+- [brain/llm_client.py](/e:/My%20project%20with%20git/AI-Asistant/brain/llm_client.py)
+- [backend/app/services/llm_gateway.py](/e:/My%20project%20with%20git/AI-Asistant/backend/app/services/llm_gateway.py)
+- [backend/app/api/routes_system.py](/e:/My%20project%20with%20git/AI-Asistant/backend/app/api/routes_system.py)
+
+## Backend Plugins
+
+Current work-assistant plugins discovered from [backend/app/plugins](/e:/My%20project%20with%20git/AI-Asistant/backend/app/plugins):
+
+- `general_assistant`
+  Answers normal user questions through the configured LLM
+- `small_talk`
+  Greetings and simple assistant replies
+- `browser_navigator`
+  Open URL, Google search, YouTube search, YouTube play
+- `web_search`
+  Operational web-search style requests
+- `email_writer`
+  Draft workplace emails and client responses
+- `meeting_notes_summarizer`
+  Summaries and action items from raw notes
+- `sales_report_generator`
+  Generate sales-style reports
+- `excel_data_analyzer`
+  Analyze uploaded spreadsheet data
+- `desktop_control`
+  Explains that local device control needs the desktop app
+
+## Admin Access and Login
+
+### Important clarification
+Right now this project does not have a separate full admin panel with user management screens.
+
+What it does have:
+- a demo seeded user
+- workspace membership
+- role in JWT or headers
+- API-key based access for quick local usage
+
+### Default demo login
+The backend seeds this demo account automatically from [backend/app/db/session.py](/e:/My%20project%20with%20git/AI-Asistant/backend/app/db/session.py):
+
+- Email: `demo@company.com`
+- Password: `demo-pass`
+- Workspace: `demo-workspace`
+- Role: `manager`
+
+### Login by API
+Endpoint:
+
+```http
+POST /auth/login
+```
+
+JSON body:
+
+```json
+{
+  "email": "demo@company.com",
+  "password": "demo-pass",
+  "workspace_id": "demo-workspace"
+}
+```
+
+Response:
+- bearer token
+- workspace id
+- user id
+- role
+
+### Access without bearer login
+For local/demo use, backend routes also allow `X-API-Key`.
+
+Default current value from config:
+
+```text
+replace-in-prod
+```
+
+This is defined in [backend/app/config.py](/e:/My%20project%20with%20git/AI-Asistant/backend/app/config.py) as `ASSISTANT_API_KEY`.
+
+### How to change admin-like access
+If you want real admin control later, we can add:
+
+1. user creation
+2. role-based admin panel
+3. workspace management
+4. plugin enable/disable controls
+5. audit logs in UI
+
+Right now "admin access" mostly means:
+- using the demo manager login
+- using bearer token auth
+- or using the API key for local dashboard/API access
+
+## LLM Selection
+
+The dashboard now supports selecting:
+- `ollama`
+- `openai`
+- `gemini`
+
+It also supports:
+- model name entry
+- cloud reasoner on or off
+- auto routing on or off
+- live check of provider state
+
+### Current recommended local setup
+If you want fully local use without cloud billing:
+
+```env
+ASSISTANT_ENABLE_CLOUD_REASONER=true
+ASSISTANT_LLM_PROVIDER=ollama
+OLLAMA_MODEL=phi3:mini
+OLLAMA_HOST=http://127.0.0.1:11434
+```
+
+## Quick Start
+
+### Requirements
+- Windows is the main target
 - Python 3.11+
-- A virtual environment is recommended
+- Virtual environment recommended
+- Ollama installed if you want local LLM
 
----
-
-## 🚀 Quick Start (Windows)
-
-### 1) Create & activate a virtual environment
+### Install
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-```
-
-### 2) Install dependencies
-
-```powershell
 pip install -r requirements.txt
 ```
 
-### 3) (Optional) Configure environment variables
+### Run desktop app
 
-Create a `.env` file in the repo root to persist settings.
-
-Example `.env`:
-
-```env
-# --- Voice / input mode ---
-# Force text-only mode (disables voice input)
-# ASSISTANT_TEXT_MODE=1
-
-# Require wake word ("Sikha" / "Shikha") to accept speech
-# ASSISTANT_REQUIRE_WAKE_WORD=1
-
-# Choose a Vosk model folder under `models/`
-# ASSISTANT_STT_MODEL=vosk-hindi-en
-
-# --- Cloud reasoner (optional) ---
-# ASSISTANT_ENABLE_CLOUD_REASONER=true
-# ASSISTANT_LLM_PROVIDER=gemini
-# GEMINI_API_KEY=your_key_here
-
-# Or using Ollama:
-# ASSISTANT_LLM_PROVIDER=ollama
-# OLLAMA_MODEL=phi3
-# OLLAMA_HOST=http://127.0.0.1:11434
+```powershell
+.\run_sikha.bat
 ```
 
-> The app loads `.env` automatically using `python-dotenv`.
+Or:
 
-### 4) Download a Vosk speech model (voice input)
+```powershell
+.\.venv\Scripts\python.exe sikha_desktop.py
+```
 
-Put one of the supported model folders inside `models/`, e.g:
-
-- `models/vosk-hindi-en/`
-- `models/vosk-model-small-hi-0.22/`
-- `models/vosk-model-small-en-us-0.15/`
-
-If no model is found, the assistant will still run in text mode.
-
-### 5) Run the assistant
+### Run console assistant
 
 ```powershell
 .\.venv\Scripts\python.exe main.py
 ```
 
----
-
-## 🗣️ Voice vs Text Modes
-
-- **Default:** Voice input (if Vosk model and microphone available) + text fallback
-- **Text-only:** Set `ASSISTANT_TEXT_MODE=1`
-- **Wake-word mode:** Set `ASSISTANT_REQUIRE_WAKE_WORD=1` (only processes speech containing "Sikha/Shikha")
-
----
-
-## 💬 Example Commands
-
-### General / App Actions
-- `Sikha open chrome`
-- `Sikha close spotify`
-- `open youtube`
-- `open https://example.com`
-
-### Search
-- `Google pe python course search karo`
-- `Search google for weather forecast`
-- `YouTube pe lo-fi music search karo`
-- `Play youtube lo-fi music`
-
-### Notes
-- `Create a note: buy milk tomorrow`
-- `Note banao: kal subah call kar lena`
-- `List notes`
-
-### Tasks
-- `Create task: finish report`
-- `List tasks`
-- `Complete task 3`
-
-### Screenshots
-- `Take screenshot`
-
-### Gmail (requires OAuth setup)
-- `Read emails`
-- `Send email to alice@example.com subject Hi body Hello there`
-
-### Vision (webcam)
-- `Describe scene`
-
----
-
-## 🔌 Optional Integrations
-
-### Gmail (OAuth)
-1. Place Google credentials JSON at `credentials.json` in the repo root.
-2. Run a Gmail command; the assistant will open a browser to authenticate.
-
-### Vision (webcam)
-- Connect a webcam and allow camera access.
-- Uses OpenCV to capture a frame and describe it.
-
-### Cloud LLM Reasoner (Gemini / Ollama)
-- Enable with `ASSISTANT_ENABLE_CLOUD_REASONER=true`
-- Set provider with `ASSISTANT_LLM_PROVIDER=gemini` or `ollama`
-- Configure API keys/host as described above
-
----
-
-## 📦 Install on Another System
-
-### Option 1: Install via pip
+### Run backend + web dashboard
 
 ```powershell
-pip install .
-sikha
+.\.venv\Scripts\python.exe -m uvicorn backend.app.main:app --reload
 ```
 
-This installs a `sikha` CLI entry point.
+Then open:
 
-### Option 2: Build a Windows executable
+```text
+http://127.0.0.1:8000/
+```
+
+If import issues appear from repo root, use:
 
 ```powershell
-.\scripts\build_windows.ps1
+$env:PYTHONPATH="E:\My project with git\AI-Asistant\backend"
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload
 ```
-
-- Output: `dist/SikhaAssistant.exe`
-
-Installer (requires Inno Setup):
-
-```powershell
-.\scripts\build_windows.ps1 -Installer
-```
-
----
-
-## 🗃️ Data Storage
-
-- Default data folder: `%LOCALAPPDATA%\SikhaAssistant`
-- SQLite memory file: `assistant_memory.db`
-- Screenshots and browser TTS resources stored in the same folder
-
----
-
-## 🧪 Backend Starter (Cloud Work Assistant)
-
-This repo includes a starter FastAPI backend and web UI under `backend/` and `frontend/web/`.
-
-### Run the backend locally
-
-```powershell
-cd backend
-..\.venv\Scripts\python.exe -m pip install -r requirements.txt
-$env:PYTHONPATH="$(pwd)"
-..\.venv\Scripts\python.exe -m uvicorn app.main:app --reload
-```
-
-Then open: `http://127.0.0.1:8000/`
-
----
-
-## 📚 Documentation & Guides
-
-- [Architecture overview](docs/PRODUCT_ARCHITECTURE.md)
-- [Low-spec assistant blueprint](docs/LOW_SPEC_WORK_ASSISTANT_BLUEPRINT.md)
-- [AWS EC2 deployment](docs/AWS_EC2_DEPLOYMENT.md)
-- [Render deployment](docs/RENDER_DEPLOYMENT.md)
-
----
-
-## 🛠️ Troubleshooting Tips
-
-- **Missing Vosk model:** Download and place a Vosk model under `models/`
-- **Voice TTS not working:** Ensure Windows TTS is enabled or use browser-based TTS fallback
-- **Audio device issues:** Check microphone permissions and that audio input is correctly selected
-
----
-
-## 🙌 Want to Help?
-Contributions are welcome! If you find bugs or want new features, open an issue or submit a PR.
-
-1. Create and activate a virtual environment.
-2. Install dependencies:
-
-   ```powershell
-   pip install -r requirements.txt
-   ```
-
-3. Optional: set Gemini key in `.env`:
-
-   ```env
-   GEMINI_API_KEY=your_key_here
-   ```
-
-4. Put a Vosk model under `models/` for voice mode, for example:
-   - `models/vosk-hindi-en/`
-   - `models/vosk-model-small-hi-0.22/`
-   - `models/vosk-model-small-en-us-0.15/`
-
-5. Run:
-
-   ```powershell
-   .\.venv\Scripts\python.exe main.py
-   ```
-
-6. Text-only mode:
-
-   ```powershell
-   $env:ASSISTANT_TEXT_MODE='1'
-   .\.venv\Scripts\python.exe main.py
-   ```
 
 ## Example Commands
 
-- `Sikha youtube kholo`
-- `python google pe search karo`
+### Desktop commands
 - `open chrome`
-- `ek note banao: kal subah call karna`
-- `show tasks`
+- `open excel`
+- `open word`
+- `open C:\Users\YourName\Documents\report.xlsx`
+- `open E:\My project with git\AI-Asistant\README.md`
+- `close chrome`
+- `take screenshot`
+- `search google for python tutorial`
+- `play youtube lofi music`
+- `create note buy milk`
+- `create task finish monthly report`
+- `list tasks`
+- `complete task 1`
+- `read emails`
+- `describe scene`
 
-## Install On Another System
+### Work-assistant style prompts
+- `write an email to my manager about today's status`
+- `summarize these meeting notes`
+- `analyze this excel file`
+- `generate a weekly sales report`
+- `search the web for latest hiring trends`
 
-You have two supported options.
+## File Upload and Workspace Use
 
-### Option 1: Install with Python
+The web dashboard supports file upload by workspace through:
 
-Copy the project, then run:
+- `POST /files/upload`
 
-```powershell
-pip install .
-sikha
-```
+Uploaded files are stored under the project storage area and linked to the workspace.
 
-This installs a `sikha` command using `pyproject.toml`.
+## API Endpoints
 
-### Option 2: Build a Windows App
+Main routes:
+- `GET /health`
+- `POST /auth/login`
+- `GET /system/status`
+- `GET /system/llm`
+- `POST /system/llm`
+- `POST /system/llm/check`
+- `POST /tasks/`
+- `GET /tasks/history`
+- `GET /plugins/`
+- `POST /files/upload`
 
-From this project folder:
+## Tests
 
-```powershell
-.\scripts\build_windows.ps1
-```
-
-Output goes to:
-
-- `dist/SikhaAssistant.exe`
-
-Installable Windows setup:
-
-```powershell
-.\scripts\build_windows.ps1 -Installer
-```
-
-This requires Inno Setup (`iscc`) to be installed.
-
-## Portable App Notes
-
-- User data is stored under `%LOCALAPPDATA%\SikhaAssistant`
-- SQLite memory database is created automatically there
-- Selenium cache is kept in the same user data area
-- Screenshots are saved under the app data folder unless you override the path
-- Bundled resources like `voice/browser_tts.html` are packaging-safe
-
-## Quick Launcher
-
-Double-click:
-
-```text
-run_sikha.bat
-```
-
-It uses the local virtual environment if present, otherwise it tries `py`.
-
-## Optional Integrations
-
-- Gmail OAuth: add `credentials.json`
-- Vision: add your YOLO model file
-- Better voice mode: install a suitable Vosk Hindi/English model
-
-## Cloud Work Assistant Scaffold
-
-This repo now also contains a starter cloud-first workplace AI architecture under:
-
-- [backend/app/main.py](/e:/My%20project%20with%20git/AI-Asistant/backend/app/main.py)
-- [docs/PRODUCT_ARCHITECTURE.md](/e:/My%20project%20with%20git/AI-Asistant/docs/PRODUCT_ARCHITECTURE.md)
-- [frontend/web/README.md](/e:/My%20project%20with%20git/AI-Asistant/frontend/web/README.md)
-
-Run the backend locally:
+Run backend tests:
 
 ```powershell
-cd "e:\My project with git\AI-Asistant\backend"
-..\.\.venv\Scripts\python.exe -m pip install -r requirements.txt
-$env:PYTHONPATH="e:\My project with git\AI-Asistant\backend"
-..\.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload
+.\.venv\Scripts\python.exe -m pytest backend\tests -q
 ```
 
-Optional cloud reasoner setup:
+## Troubleshooting
 
-```powershell
-$env:ASSISTANT_ENABLE_CLOUD_REASONER="true"
-$env:ASSISTANT_LLM_PROVIDER="gemini"
-$env:GEMINI_API_KEY="your_key_here"
-```
+### App says model is unavailable
+- Check Ollama is running
+- Check selected model exists in Ollama
+- Check dashboard provider/model selection
 
-Or for Ollama:
+### Desktop says app or file cannot open
+- Confirm path exists
+- Confirm Windows has an associated app for the file
+- For Office files, confirm Office is installed
 
-```powershell
-$env:ASSISTANT_ENABLE_CLOUD_REASONER="true"
-$env:ASSISTANT_LLM_PROVIDER="ollama"
-$env:OLLAMA_MODEL="phi3"
-$env:OLLAMA_HOST="http://127.0.0.1:11434"
-```
+### Web dashboard cannot open local apps
+- This is expected
+- Use the desktop assistant for local OS actions
 
-Web app:
+### OpenAI or Gemini problems
+- Check API key
+- Check selected provider
+- Check whether quota is exhausted
 
-- After starting the backend, open `http://127.0.0.1:8000/`
-- API docs stay available at `http://127.0.0.1:8000/docs`
-- Default API key for the starter is `replace-in-prod`
+## Project Structure
 
-Core starter modules included:
+- [actions](/e:/My%20project%20with%20git/AI-Asistant/actions)
+  Desktop/local actions
+- [assistant](/e:/My%20project%20with%20git/AI-Asistant/assistant)
+  Runtime, routing, path helpers
+- [backend](/e:/My%20project%20with%20git/AI-Asistant/backend)
+  FastAPI backend and plugins
+- [frontend/web](/e:/My%20project%20with%20git/AI-Asistant/frontend/web)
+  Browser dashboard
+- [memory](/e:/My%20project%20with%20git/AI-Asistant/memory)
+  Local memory store
+- [vision](/e:/My%20project%20with%20git/AI-Asistant/vision)
+  Camera and scene helpers
+- [voice](/e:/My%20project%20with%20git/AI-Asistant/voice)
+  STT and TTS
 
-- frontend placeholders for web, desktop, and mobile companion
-- FastAPI API server
-- task router
-- LLM reasoning stub
-- plugin system
-- auth and workspace stubs
-- file upload service
-- deployment Docker files
+## Next Good Upgrades
 
-The web starter now includes:
+If you want, the next useful improvements would be:
 
-- task runner UI
-- plugin catalog view
-- task history view
-- file upload to workspace storage
-- system status view for API and LLM routing mode
-- login flow for bearer-token auth using the seeded demo user
-
-Starter login:
-
-```text
-email: demo@company.com
-password: demo-pass
-workspace: demo-workspace
-```
-
-Architecture blueprint for the low-spec workplace assistant:
-
-- [docs/LOW_SPEC_WORK_ASSISTANT_BLUEPRINT.md](/e:/My%20project%20with%20git/AI-Asistant/docs/LOW_SPEC_WORK_ASSISTANT_BLUEPRINT.md)
-- [docs/AWS_EC2_DEPLOYMENT.md](/e:/My%20project%20with%20git/AI-Asistant/docs/AWS_EC2_DEPLOYMENT.md)
-- [docs/RENDER_DEPLOYMENT.md](/e:/My%20project%20with%20git/AI-Asistant/docs/RENDER_DEPLOYMENT.md)
-
+1. real admin panel
+2. Excel automation
+3. internet data extraction into spreadsheet
+4. better web automation fallback without Selenium dependency
+5. persistent multi-message chat timeline in the dashboard

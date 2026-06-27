@@ -7,6 +7,118 @@
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
+    <section id="quotationPage" class="quotation-page hidden" aria-live="polite">
+      <div class="quotation-shell">
+        <header class="quotation-hero">
+          <div>
+            <p class="eyebrow">Quotation Page</p>
+            <h1>Smart quotation calculator for floor-wise estimates</h1>
+            <p class="hero-copy">
+              Mobile-friendly quotation builder with live totals, floor review, and share-ready summary.
+            </p>
+          </div>
+          <div class="hero-badge-stack">
+            <div class="hero-badge">Phone Ready</div>
+            <div class="hero-badge">Floor Wise</div>
+            <div class="hero-badge">Live Review</div>
+          </div>
+        </header>
+
+        <main class="quotation-layout">
+          <section class="quote-card quote-form-card">
+            <div class="section-head">
+              <div>
+                <h2>Project Details</h2>
+                <p>Fill customer details and add line items floor by floor.</p>
+              </div>
+            </div>
+
+            <div class="quote-grid quote-grid-2">
+              <label class="quote-field">
+                <span>Client name</span>
+                <input id="quoteClientName" placeholder="Aman Sharma" />
+              </label>
+              <label class="quote-field">
+                <span>Project name</span>
+                <input id="quoteProjectName" placeholder="Office Interior Estimate" />
+              </label>
+              <label class="quote-field">
+                <span>Quote number</span>
+                <input id="quoteNumber" placeholder="QT-2026-001" />
+              </label>
+              <label class="quote-field">
+                <span>Valid until</span>
+                <input id="quoteValidUntil" type="date" />
+              </label>
+            </div>
+
+            <div class="section-head quote-section-gap">
+              <div>
+                <h2>Quotation Items</h2>
+                <p>Add each floor or work item with quantity, area, rate, and notes.</p>
+              </div>
+              <button id="addQuoteRowBtn" class="btn primary small" type="button">Add item</button>
+            </div>
+
+            <div id="quoteItems" class="quote-items"></div>
+
+            <div class="quote-grid quote-grid-3 quote-section-gap">
+              <label class="quote-field">
+                <span>Discount</span>
+                <input id="quoteDiscount" type="number" min="0" step="0.01" value="0" />
+              </label>
+              <label class="quote-field">
+                <span>Tax %</span>
+                <input id="quoteTaxPercent" type="number" min="0" step="0.01" value="18" />
+              </label>
+              <label class="quote-field">
+                <span>Extra charges</span>
+                <input id="quoteExtraCharges" type="number" min="0" step="0.01" value="0" />
+              </label>
+            </div>
+          </section>
+
+          <aside class="quote-card quote-summary-card">
+            <div class="section-head">
+              <div>
+                <h2>Calculation Review</h2>
+                <p>Live totals and floor-wise quotation review.</p>
+              </div>
+            </div>
+
+            <div class="summary-stack">
+              <div class="summary-metric">
+                <span>Subtotal</span>
+                <strong id="quoteSubtotal">0.00</strong>
+              </div>
+              <div class="summary-metric">
+                <span>Discount</span>
+                <strong id="quoteDiscountValue">0.00</strong>
+              </div>
+              <div class="summary-metric">
+                <span>Tax</span>
+                <strong id="quoteTaxValue">0.00</strong>
+              </div>
+              <div class="summary-metric">
+                <span>Final total</span>
+                <strong id="quoteGrandTotal">0.00</strong>
+              </div>
+            </div>
+
+            <div class="quote-review-panel">
+              <h3>Floor-wise review</h3>
+              <div id="quoteFloorReview" class="quote-review-list"></div>
+            </div>
+
+            <div class="quote-review-panel">
+              <h3>Quotation summary</h3>
+              <textarea id="quoteSummaryText" rows="10" readonly></textarea>
+            </div>
+          </aside>
+        </main>
+      </div>
+    </section>
+
     <!-- Global loading / reconnect overlay -->
     <div id="loadingOverlay" class="overlay hidden" aria-live="polite">
       <div class="overlay-content">

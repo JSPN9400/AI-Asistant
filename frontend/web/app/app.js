@@ -27,6 +27,9 @@ const voiceDot = $('voiceDot');
 const internetDot = $('internetDot');
 const uploadStatus = $('uploadStatus');
 const voiceStatus = $('voiceStatus');
+const quotationPage = $('quotationPage');
+const quoteItems = $('quoteItems');
+const addQuoteRowBtn = $('addQuoteRowBtn');
 
 // Keep the chat view scrolled to the bottom unless the user scrolls up explicitly.
 let autoScroll = true;
@@ -57,8 +60,22 @@ const STORAGE_KEYS = {
   userId: 'sikha-user-id',
   voiceLang: 'sikha-voice-lang',
 };
+const QUOTE_ROW_TEMPLATE = () => ({
+  floor: '',
+  description: '',
+  area: 0,
+  quantity: 1,
+  rate: 0,
+});
+let quoteRowCounter = 0;
+
+function isQuotationMode() {
+  const params = new URLSearchParams(window.location.search);
+  return params.get('page') === 'quotation';
+}
 
 function showOverlay(message = 'Connecting to Sikha...') {
+  if (isQuotationMode()) return;
   if (!loadingOverlay) return;
   const textEl = loadingOverlay.querySelector('.overlay-text');
   if (textEl) textEl.textContent = message;
@@ -66,6 +83,7 @@ function showOverlay(message = 'Connecting to Sikha...') {
 }
 
 function hideOverlay() {
+  if (isQuotationMode()) return;
   if (!loadingOverlay) return;
   loadingOverlay.classList.add('hidden');
 }
@@ -347,6 +365,11 @@ function setupDrawer() {
 }
 
 function setupEventListeners() {
+  if (isQuotationMode()) {
+    setupQuotationPage();
+    return;
+  }
+
   messageInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -378,6 +401,159 @@ function setupEventListeners() {
   });
 
   $('saveSettingsBtn')?.addEventListener('click', saveSettings);
+}
+
+function setupQuotationPage() {
+  document.body.classList.add('quotation-mode');
+  document.querySelector('.app')?.classList.add('hidden');
+  quotationPage?.classList.remove('hidden');
+  addQuoteRowBtn?.addEventListener('click', () => addQuotationRow());
+
+  ['quoteClientName', 'quoteProjectName', 'quoteNumber', 'quoteValidUntil', 'quoteDiscount', 'quoteTaxPercent', 'quoteExtraCharges']
+    .forEach((id) => $(id)?.addEventListener('input', recalculateQuotation));
+
+  addQuotationRow({ floor: 'Ground Floor', description: 'Civil work', area: 1200, quantity: 1, rate: 45 });
+  addQuotationRow({ floor: 'First Floor', description: 'Interior finishing', area: 950, quantity: 1, rate: 60 });
+  recalculateQuotation();
+}
+
+function addQuotationRow(initialData = QUOTE_ROW_TEMPLATE()) {
+  if (!quoteItems) return;
+  quoteRowCounter += 1;
+  const row = document.createElement('div');
+  row.className = 'quote-item-row';
+  row.innerHTML = `
+    <div class="quote-grid quote-grid-item">
+      <label class="quote-field">
+        <span>Floor</span>
+        <input data-field="floor" placeholder="Ground Floor" value="${escapeHtml(initialData.floor || '')}" />
+      </label>
+      <label class="quote-field quote-item-wide">
+        <span>Description</span>
+        <input data-field="description" placeholder="Work description" value="${escapeHtml(initialData.description || '')}" />
+      </label>
+      <label class="quote-field">
+        <span>Area</span>
+        <input data-field="area" type="number" min="0" step="0.01" value="${Number(initialData.area || 0)}" />
+      </label>
+      <label class="quote-field">
+        <span>Quantity</span>
+        <input data-field="quantity" type="number" min="0" step="0.01" value="${Number(initialData.quantity || 1)}" />
+      </label>
+      <label class="quote-field">
+        <span>Rate</span>
+        <input data-field="rate" type="number" min="0" step="0.01" value="${Number(initialData.rate || 0)}" />
+      </label>
+      <div class="quote-row-total">
+        <span>Line total</span>
+        <strong data-line-total>0.00</strong>
+        <button type="button" class="btn ghost small quote-remove-btn">Remove</button>
+      </div>
+    </div>
+  `;
+
+  row.querySelectorAll('input').forEach((input) => input.addEventListener('input', recalculateQuotation));
+  row.querySelector('.quote-remove-btn')?.addEventListener('click', () => {
+    row.remove();
+    recalculateQuotation();
+  });
+
+  quoteItems.appendChild(row);
+}
+
+function recalculateQuotation() {
+  if (!quoteItems) return;
+  const rows = Array.from(quoteItems.querySelectorAll('.quote-item-row'));
+  const grouped = new Map();
+  let subtotal = 0;
+
+  rows.forEach((row) => {
+    const floor = row.querySelector('[data-field="floor"]')?.value.trim() || 'Unspecified';
+    const description = row.querySelector('[data-field="description"]')?.value.trim() || 'Work item';
+    const area = getNumericValue(row.querySelector('[data-field="area"]')?.value);
+    const quantity = getNumericValue(row.querySelector('[data-field="quantity"]')?.value, 1);
+    const rate = getNumericValue(row.querySelector('[data-field="rate"]')?.value);
+    const lineTotal = area * quantity * rate;
+    subtotal += lineTotal;
+
+    const totalEl = row.querySelector('[data-line-total]');
+    if (totalEl) totalEl.textContent = formatCurrency(lineTotal);
+
+    if (!grouped.has(floor)) {
+      grouped.set(floor, { amount: 0, items: [] });
+    }
+    const floorEntry = grouped.get(floor);
+    floorEntry.amount += lineTotal;
+    floorEntry.items.push(`${description}: ${formatCurrency(lineTotal)}`);
+  });
+
+  const discount = getNumericValue($('quoteDiscount')?.value);
+  const taxPercent = getNumericValue($('quoteTaxPercent')?.value);
+  const extraCharges = getNumericValue($('quoteExtraCharges')?.value);
+  const taxableBase = Math.max(subtotal - discount + extraCharges, 0);
+  const taxValue = taxableBase * (taxPercent / 100);
+  const grandTotal = taxableBase + taxValue;
+
+  setText('quoteSubtotal', formatCurrency(subtotal));
+  setText('quoteDiscountValue', formatCurrency(discount));
+  setText('quoteTaxValue', formatCurrency(taxValue));
+  setText('quoteGrandTotal', formatCurrency(grandTotal));
+
+  const floorReview = $('quoteFloorReview');
+  if (floorReview) {
+    floorReview.innerHTML = Array.from(grouped.entries()).map(([floor, data]) => `
+      <article class="floor-review-card">
+        <div class="floor-review-top">
+          <strong>${escapeHtml(floor)}</strong>
+          <span>${formatCurrency(data.amount)}</span>
+        </div>
+        <p>${escapeHtml(data.items.join(' | '))}</p>
+      </article>
+    `).join('') || '<p class="quote-empty">Add quotation items to see floor-wise review.</p>';
+  }
+
+  const summaryLines = [
+    `Quotation: ${$('quoteNumber')?.value || 'Draft'}`,
+    `Client: ${$('quoteClientName')?.value || 'Not set'}`,
+    `Project: ${$('quoteProjectName')?.value || 'Not set'}`,
+    `Valid until: ${$('quoteValidUntil')?.value || 'Not set'}`,
+    '',
+    'Floor-wise review:',
+    ...Array.from(grouped.entries()).map(([floor, data]) => `- ${floor}: ${formatCurrency(data.amount)}`),
+    '',
+    `Subtotal: ${formatCurrency(subtotal)}`,
+    `Discount: ${formatCurrency(discount)}`,
+    `Extra charges: ${formatCurrency(extraCharges)}`,
+    `Tax (${taxPercent}%): ${formatCurrency(taxValue)}`,
+    `Grand total: ${formatCurrency(grandTotal)}`,
+  ];
+  if ($('quoteSummaryText')) $('quoteSummaryText').value = summaryLines.join('\n');
+}
+
+function getNumericValue(value, fallback = 0) {
+  const numeric = Number.parseFloat(value || '');
+  return Number.isFinite(numeric) ? numeric : fallback;
+}
+
+function formatCurrency(value) {
+  return new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    maximumFractionDigits: 2,
+  }).format(Number.isFinite(value) ? value : 0);
+}
+
+function setText(id, value) {
+  if ($(id)) $(id).textContent = value;
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
 }
 
 function handleToolAction(action) {
@@ -446,6 +622,7 @@ function switchDrawerSection(sectionName) {
 }
 
 async function initializeApp() {
+  if (isQuotationMode()) return;
   showOverlay('Connecting to Sikha...');
 
   try {
@@ -735,7 +912,9 @@ if (retryButton) {
 
 // Start the app once the DOM is ready
 window.addEventListener('DOMContentLoaded', () => {
-  setupDrawer();
   setupEventListeners();
-  initializeApp();
+  if (!isQuotationMode()) {
+    setupDrawer();
+    initializeApp();
+  }
 });

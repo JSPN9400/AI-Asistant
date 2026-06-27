@@ -53,6 +53,10 @@ class ResponseComposer:
     def _fallback_reply(task: str, result: dict) -> str:
         if result.get("message"):
             return str(result["message"])
+        if result.get("report_files"):
+            if result.get("pdf_generated"):
+                return "I created a dynamic report with calculations and exported HTML, text, JSON, and PDF versions for you."
+            return "I created a dynamic report with calculations and exported HTML, text, and JSON versions. PDF export is ready once the PDF package is installed."
         if result.get("report"):
             return "I created the report and highlighted the main actions for you."
         if result.get("summary"):
